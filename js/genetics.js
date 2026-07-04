@@ -208,17 +208,27 @@ const Genetics = {
     return l + (meme.lifespanBonus || 0);
   },
 
-  moveRange(meme) {
-    const s = this.effStats(meme);
-    return U.clamp(3 + Math.floor(s.spd / 4), 2, 6);
-  },
-
   abilities(meme) {
     const list = ['bonk'];
     const sig = DATA.GENES.face.alleles[meme.pheno.face].ability;
     if (sig) list.push(sig);
     for (const sp of meme.spice) if (sp && !list.includes(sp)) list.push(sp);
     return list.slice(0, 4);
+  },
+
+  // combat identity from the face gene
+  special(meme) {
+    const a = DATA.GENES.face.alleles[meme.pheno.face];
+    return (a && a.special) || { name: 'Focus', kind: 'nuke', cd: 3, mag: false };
+  },
+  role(meme) {
+    const a = DATA.GENES.face.alleles[meme.pheno.face];
+    return (a && a.role) || 'striker';
+  },
+
+  // the mobile-style power rating
+  power(meme) {
+    return DATA.power(this.effStats(meme), meme.level);
   },
 
   stage(meme) {

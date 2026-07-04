@@ -643,6 +643,108 @@ const VIRUS_ART = {
 };
 
 /* ============================================================
+   FULL-BODY MEME SPRITES (brainrot types) — the `face` gene
+   with full:true draws one of these instead of the generic body.
+   ============================================================ */
+const MEME_FULL = {
+  // Nyan Cat — pop-tart body, grey cat head, rainbow trail
+  nyan: { p: { r: '#e05a54', a: '#e0902f', y: '#e6c84d', g: '#5fae5f', b: '#4a9fd4', v: '#8a76a8',
+               T: '#f2a6cf', k: '#c98b52', s: '#4ab6d4', G: '#c9cfd6', o: '#26203a', c: '#f28fb0' }, g: [
+    '........GG..GG....',
+    '.......GGGGGGGG...',
+    '.......GoGGGGoG...',
+    '.......GGGGGGGG...',
+    '.......GcGooGcG...',
+    '.......GGGGGGGG...',
+    'r.....kkkkkkkkkk..',
+    'a.....kTsTTTTsTTk.',
+    'y.....kTTTsTTTTTk.',
+    'g.....kTTTTTsTTTk.',
+    'b.....kTsTTTTTTTk.',
+    'v.....kkkkkkkkkk..',
+    '.......G......G...',
+    '.......G......G...',
+  ]},
+  // Tung Tung Tung Sahur — wooden club guy
+  tung: { p: { W: '#b5844d', D: '#8a5f30', o: '#26203a' }, g: [
+    '.......WWWW.....',
+    '......WWWWWW....',
+    '......WoWWoW....',
+    '......WWWWWW....',
+    '......WooooW....',
+    '......WWWWWW....',
+    '..oo..WWDWWW.oo.',
+    '.o....WWWDWW...o',
+    '......WWDWWW....',
+    '......WWWWWW....',
+    '......WDWWWW....',
+    '......WWWWDW....',
+    '......WWWWWW....',
+    '......WDWWWW....',
+    '......WWWWWW....',
+    '......WWWWDW....',
+    '......WWWWWW....',
+    '......oo..oo....',
+    '......oo..oo....',
+  ]},
+  // Tralalero Tralala — blue shark with three sneakers
+  shark: { p: { B: '#4a86c8', D: '#2f5f9c', w: '#ffffff', o: '#26203a', s: '#e6e6ee' }, g: [
+    '.........D.......',
+    '........DD.......',
+    '.......DDDB......',
+    '......BBBBBB.....',
+    '.....BBBBBBBB....',
+    '....BBoBBBBoBB...',
+    '....BBBBBBBBBB...',
+    '....BwwwwwwwwB...',
+    '....BwoooooowB...',
+    '....BBBBBBBBBB...',
+    '...BBBBBBBBBBBB..',
+    '...BBBBBBBBBBBB..',
+    '...BBBBBBBBBBBB..',
+    '....BBBBBBBBBB...',
+    '.....BB.BB.BB....',
+    '.....BB.BB.BB....',
+    '.....ss.ss.ss....',
+    '....sssssssss....',
+  ]},
+  // Cappuccino Assassino — coffee cup ninja
+  capp: { p: { R: '#c94a3a', F: '#e8d8b0', C: '#8a5a34', w: '#b7b0a0', W: '#f2efe6', o: '#26203a' }, g: [
+    '...RRRRRRRR.....',
+    '...FFFFFFFF.....',
+    '..FFFCCCCFFF....',
+    '..wwwwwwwwww....',
+    '..woWWWWWWow....',
+    '..wWWWWWWWWw.ww.',
+    '..wWWooooWWw.wow',
+    '..wWWWWWWWWw.ww.',
+    '..wWWWWWWWWw....',
+    '..wWWWWWWWWw....',
+    '...wWWWWWWw.....',
+    '...wWWWWWWw.....',
+    '....wwwwww......',
+    '.....wwww.......',
+  ]},
+  // Bombardiro Crocodilo — crocodile-bomber plane
+  croco: { p: { G: '#6f8a5a', D: '#4f6540', g: '#8a939a', o: '#26203a', w: '#ffffff' }, g: [
+    '.........GG.......',
+    '........GGGG......',
+    '........GoGoG.....',
+    '.......GGGGGGG....',
+    '.......GwwwwwG....',
+    'g......GGGGGGG....g',
+    'gg....gGGGGGGGg..gg',
+    'gggggggGGGGGGgggggg',
+    'gggggggGGGDGGgggggg',
+    'gg....gGGGGGGGg..gg',
+    'g......gggGgggg...g',
+    '.......ggGGGgg....',
+    '........gGGGg.....',
+    '........gg.gg.....',
+  ]},
+};
+
+/* ============================================================
    PROCEDURAL MEME PIXEL RENDERER
    ============================================================ */
 const Sprite = {
@@ -695,6 +797,9 @@ const Sprite = {
 
   _render(meme, stage, zombie, equip) {
     const p = meme.pheno;
+    if (DATA.GENES.face.alleles[p.face] && DATA.GENES.face.alleles[p.face].full) {
+      return this._renderFull(p, stage, zombie, equip);
+    }
     const hue = DATA.GENES.hue.alleles[p.hue];
     const W = this.W, H = this.H;
     const px = new Array(W * H).fill(null);   // color strings
@@ -991,6 +1096,40 @@ const Sprite = {
       }
     }
 
+    return cv.toDataURL();
+  },
+
+  // full-body brainrot sprites (nyan, tung, shark, capp, croco)
+  _renderFull(p, stage, zombie, equip) {
+    const art = MEME_FULL[p.face] || MEME_FULL.nyan;
+    const cv = document.createElement('canvas');
+    cv.width = this.W; cv.height = this.H;
+    const ctx = cv.getContext('2d');
+    let w = 0; for (const row of art.g) w = Math.max(w, row.length);
+    const ox = Math.max(0, Math.floor((this.W - w) / 2));
+    const oy = Math.max(0, Math.floor((this.H - art.g.length) / 2) + 1);
+    Pixel.drawGridOn(ctx, art.g, art.p, ox, oy);
+
+    if (zombie) {
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.fillStyle = 'rgba(95,174,95,.32)';
+      ctx.fillRect(0, 0, this.W, this.H);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    if (equip.hat && DATA.ITEMS[equip.hat]) {
+      const a = ICONS[DATA.ITEMS[equip.hat].ico];
+      if (a) Pixel.drawGridOn(ctx, a.g, a.p, 7, Math.max(0, oy - 6));
+    }
+    if (equip.held && DATA.ITEMS[equip.held]) {
+      const a = ICONS[DATA.ITEMS[equip.held].ico];
+      if (a) {
+        const tmp = document.createElement('canvas');
+        tmp.width = 10; tmp.height = 10;
+        Pixel.drawGridOn(tmp.getContext('2d'), a.g, a.p, 0, 0);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(tmp, 15, 17, 8, 8);
+      }
+    }
     return cv.toDataURL();
   },
 

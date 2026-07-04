@@ -436,6 +436,7 @@ const Desktop = {
           <div class="portrait">${Sprite.memeSVG(m, { size: 104 })}<span class="lvl-chip">Lv ${m.level}</span></div>
           <div class="info">
             <h3>${U.esc(m.name)} <span class="gen">GEN ${m.gen}</span>${m.retired ? `<span class="crown-chip">${Icon.ico('crown', 10)} RETIRED</span>` : ''}</h3>
+            <div class="power-chip">${Icon.ico('bolt', 13)} POWER ${Genetics.power(m)} · ${DATA.GENES.face.alleles[m.pheno.face].label}</div>
             <div class="flavor">${U.esc(DATA.FLAVOR_BY_FACE[m.pheno.face] || '')} ${stage === 'baby' ? '<b>(baby — too smol to fight)</b>' : ''}</div>
             <div class="age-meter">${Icon.ico(stage === 'elder' ? 'wilt' : 'sprout', 13)} Age ${m.age}/${life}
               <div class="stat-bar sb-age" style="flex:1"><div style="width:${agePct}%"></div></div></div>
@@ -802,78 +803,137 @@ const Desktop = {
   },
 
   /* ============================================================
-     MISSIONS
+     STAGE MAP (Candy-Crush style roadmap)
      ============================================================ */
-  missionUnlocked(idx) {
-    const mi = DATA.MISSIONS[idx];
-    if (mi.endless) return Game.isUnlocked('endless');
+  REGION_ICO: {
+    'Downloads': 'doc', 'Recycle Bin': 'recycle', 'Email Swamp': 'mail', 'System32': 'window',
+    'GPU Mines': 'gpu', 'Dark Web': 'tinfoil', 'Spam Fortress': 'can', 'The Cloud': 'window',
+  },
+  stageIco(stage) { return stage.boss ? 'skull' : (this.REGION_ICO[stage.region] || 'swords'); },
+
+  stageUnlocked(idx) {
+    const s = DATA.STAGES[idx];
+    if (s.endless) return Game.isUnlocked('endless');
     if (idx === 0) return true;
-    const prev = DATA.MISSIONS[idx - 1];
-    return !!Game.state.missionsDone[prev.id];
+    return !!Game.state.missionsDone[DATA.STAGES[idx - 1].id];
+  },
+
+  enemyPower(stage) {
+    const scale = stage.endless ? 1 + (Game.state.cloudWave + 1) * 0.09 : 1;
+    const foes = stage.endless ? Combat.rosterFor(stage) : stage.foes;
+    return foes.reduce((a, f) => a + DATA.virusPower(DATA.VIRUSES[f], scale), 0);
+  },
+  teamBestPower() {
+    return Game.deployable().map(m => Genetics.power(m)).sort((a, b) => b - a).slice(0, 4).reduce((a, b) => a + b, 0);
   },
 
   openMissions() {
     this.openWindow('missions', {
-      title: 'virus_hunter.exe', ico: 'swords', cls: 'w-missions', w: 460,
+      title: 'virus_hunter.exe', ico: 'swords', cls: 'w-missions', w: 440,
       build: body => {
-        body.innerHTML = `<div class="missions-wrap">
-          <p style="font-size:12px;opacity:.75">Your drive is INFESTED. Send up to 4 memes per hunt. A hunt ends the day. <b>Memes that survive a hunt retire</b> — they can only breed after. Fallen memes are gone for good (mostly)...</p>
-        </div>`;
-        const wrap = body.querySelector('.missions-wrap');
-        DATA.MISSIONS.forEach((mi, idx) => {
-          if (mi.endless && !Game.isUnlocked('endless')) return;   // hidden until unlocked
-          const unlocked = this.missionUnlocked(idx);
-          const done = Game.state.missionsDone[mi.id];
-          const row = U.el('div', 'mission-row' + (unlocked ? '' : ' locked') + (done ? ' done' : ''));
-          const foes = mi.endless
-            ? `<span style="font-size:12px;opacity:.7">wave ${Game.state.cloudWave + 1} — ???</span>`
-            : mi.foes.map(f => Pixel.img(Sprite.virusSrc(DATA.VIRUSES[f].art), 22, 'virus-px')).join('');
-          row.innerHTML = `<span class="m-ico">${Icon.ico(mi.ico, 32)}</span>
-            <div class="m-info">
-              <div class="m-name">${mi.name} <span class="skull-diff">${Icon.ico('skull', 12).repeat(mi.diff)}</span> ${done ? `<span class="m-clear">${Icon.ico('check', 12)} cleared x${done}</span>` : ''}</div>
-              <div class="m-desc">${mi.desc}</div>
-              <div class="m-foes">${foes}</div>
-              <div class="m-reward">${Icon.ico('coin', 13)} ~${mi.reward[0]}-${mi.reward[1]} ${mi.itemChance >= 1 ? '+ guaranteed item' : mi.itemChance > 0.5 ? '+ likely item' : ''}</div>
-            </div>`;
-          const go = U.el('button', 'chunky-btn ' + (unlocked ? 'bad' : ''), unlocked ? `${Icon.ico('swords', 15)} GO` : Icon.ico('lock', 15));
-          go.disabled = !unlocked;
-          go.onclick = () => this.openSquadPicker(mi);
-          row.appendChild(go);
-          wrap.appendChild(row);
+        body.innerHTML = `<div class="map-head">
+            <div class="map-title">Stage Map</div>
+            <div class="map-power">Your power: <b>${this.teamBestPower()}</b></div>
+          </div><div class="stage-map"></div>`;
+        const map = body.querySelector('.stage-map');
+        let curRegion = null;
+        // find first uncleared unlocked stage = "current"
+        let currentIdx = DATA.STAGES.findIndex((s, i) => this.stageUnlocked(i) && !Game.state.missionsDone[s.id]);
+        DATA.STAGES.forEach((stage, idx) => {
+          if (stage.endless && !Game.isUnlocked('endless')) return;
+          if (stage.region !== curRegion) {
+            curRegion = stage.region;
+            map.appendChild(U.el('div', 'region-head', `${Icon.ico(this.REGION_ICO[stage.region] || 'swords', 16)} ${stage.region}`));
+          }
+          const unlocked = this.stageUnlocked(idx);
+          const cleared = Game.state.missionsDone[stage.id];
+          const side = idx % 2 === 0 ? 'l' : 'r';
+          const node = U.el('div', 'stage-node ' + side
+            + (unlocked ? '' : ' locked') + (cleared ? ' cleared' : '') + (idx === currentIdx ? ' current' : '') + (stage.boss ? ' boss' : ''));
+          node.innerHTML = `
+            <div class="sn-badge">${unlocked ? (stage.endless ? Icon.ico('window', 22) : stage.n) : Icon.ico('lock', 20)}
+              ${cleared ? `<span class="sn-crown">${Icon.ico('crown', 14)}</span>` : ''}</div>
+            <div class="sn-label">${stage.endless ? 'Endless' : stage.name}</div>
+            <div class="sn-stars">${Icon.ico('skull', 10).repeat(stage.diff)}</div>`;
+          if (unlocked) node.onclick = () => { SFX.play('select'); this.openStage(stage, idx); };
+          map.appendChild(node);
         });
       },
     });
   },
 
-  openSquadPicker(mission) {
+  openStage(stage, idx) {
+    const foes = stage.endless ? [] : stage.foes;
+    const ep = this.enemyPower(stage);
+    const tp = this.teamBestPower();
+    const cleared = Game.state.missionsDone[stage.id] || 0;
+    const foeRow = stage.endless
+      ? `<span style="opacity:.7">Wave ${Game.state.cloudWave + 1} — scales forever</span>`
+      : foes.map(f => `<span class="foe-chip">${Pixel.img(Sprite.virusSrc(DATA.VIRUSES[f].art), 30, 'virus-px')}</span>`).join('');
+    const verdict = tp >= ep ? `<span style="color:var(--green)">You out-power this stage</span>`
+      : `<span style="color:var(--red)">Underpowered — breed stronger memes!</span>`;
+    Modal.show({
+      title: `${Icon.ico(this.stageIco(stage), 20)} ${stage.name}`,
+      bodyHTML: `<div style="text-align:center">
+        <div class="power-face">
+          <div class="pf-col"><div class="pf-lbl">YOUR POWER</div><div class="pf-num good">${tp}</div></div>
+          <div class="pf-vs">VS</div>
+          <div class="pf-col"><div class="pf-lbl">ENEMY POWER</div><div class="pf-num bad">${ep}</div></div>
+        </div>
+        <div style="font-size:11px;margin:4px 0 10px">${verdict}</div>
+        <div class="card-section-label" style="justify-content:center">Enemies</div>
+        <div class="foe-row">${foeRow}</div>
+        <div class="card-section-label" style="justify-content:center;margin-top:10px">Rewards</div>
+        <div class="result-loot">
+          <span class="loot-chip">${Icon.ico('coin', 16)} ${stage.reward[0]}-${stage.reward[1]}</span>
+          <span class="loot-chip">${Icon.ico('bag', 16)} ${stage.itemChance >= 1 ? 'item' : Math.round(stage.itemChance * 100) + '% item'}</span>
+        </div>
+        ${cleared ? `<p style="font-size:11px;color:var(--green);margin-top:8px">${Icon.ico('check', 12)} cleared ${cleared}x</p>` : ''}
+      </div>`,
+      actions: [
+        { label: `${Icon.ico('swords', 16)} Deploy`, cls: 'bad', fn: () => this.openSquadPicker(stage) },
+        { label: 'Back', cls: '' },
+      ],
+    });
+  },
+
+  openSquadPicker(stage) {
     const roster = Game.deployable();
     if (!roster.length) {
       SFX.play('error');
-      toast('No battle-ready memes! Babies and retired heroes can\'t fight. Breed a fresh fighter or adopt a stray.', 4200, 'warning');
+      toast("No battle-ready memes! Babies and retired heroes can't fight. Breed a fresh fighter or adopt a stray.", 4200, 'warning');
       return;
     }
     const sel = new Set();
+    const ep = this.enemyPower(stage);
     const node = U.el('div');
-    node.innerHTML = `<p class="squad-pick-note">Choose up to <b>4</b> memes for <b>${mission.name}</b>:<br><span style="font-size:11px;opacity:.7">Survivors retire from combat afterward.</span></p>`;
+    node.innerHTML = `<p class="squad-pick-note">Pick up to <b>4</b> memes for <b>${stage.name}</b>.<br>
+      <span style="font-size:11px;opacity:.7">Enemy power <b>${ep}</b> · survivors retire afterward.</span></p>
+      <div class="pick-power">Team power: <b class="pp-num">0</b></div>`;
+    const ppNum = () => node.querySelector('.pp-num');
     const grid = U.el('div', 'breed-pick-grid');
-    const goBtn = U.el('button', 'chunky-btn bad', `${Icon.ico('swords', 16)} DEPLOY THE MEMES`);
+    const goBtn = U.el('button', 'chunky-btn bad', `${Icon.ico('swords', 16)} DEPLOY`);
     goBtn.disabled = true;
+    const recalc = () => {
+      const total = [...sel].reduce((a, id) => a + Genetics.power(Game.getMeme(id)), 0);
+      const el = ppNum(); if (el) { el.textContent = total; el.style.color = total >= ep ? 'var(--green)' : 'var(--red)'; }
+      goBtn.disabled = sel.size === 0;
+      goBtn.innerHTML = `${Icon.ico('swords', 16)} DEPLOY ${sel.size ? '(' + sel.size + ')' : ''}`;
+    };
     for (const m of roster) {
       const cell = U.el('div', 'mini-meme');
-      const s = Genetics.effStats(m);
       cell.innerHTML = `${Sprite.memeSVG(m, { size: 60 })}<span class="mm-name">${U.esc(m.name)}</span>
-        <span class="mm-sub">Lv${m.level} ${Icon.ico('heart', 11)}${s.hp} ${Icon.ico('fist', 11)}${s.atk}</span>`;
+        <span class="mm-sub">${Icon.ico('bolt', 11)} ${Genetics.power(m)}</span>`;
       cell.onclick = () => {
         if (sel.has(m.id)) { sel.delete(m.id); cell.classList.remove('selected'); }
         else if (sel.size < 4) { sel.add(m.id); cell.classList.add('selected'); SFX.play('select'); }
-        goBtn.disabled = sel.size === 0;
-        goBtn.innerHTML = `${Icon.ico('swords', 16)} DEPLOY ${sel.size ? sel.size + ' MEME' + (sel.size > 1 ? 'S' : '') : 'THE MEMES'}`;
+        recalc();
       };
       grid.appendChild(cell);
     }
     node.appendChild(grid);
     Modal.show({
-      title: `${Icon.ico(mission.ico, 20)} ${mission.name}`,
+      title: `${Icon.ico(this.stageIco(stage), 20)} ${stage.name}`,
       bodyNode: node,
       actions: [{ label: 'Cancel' }],
     }).querySelector('.modal-actions').prepend(goBtn);
@@ -881,7 +941,7 @@ const Desktop = {
       if (!sel.size) return;
       Modal.hide();
       const squad = [...sel].map(id => Game.getMeme(id));
-      Combat.start(mission, squad);
+      Combat.start(stage, squad);
     };
   },
 
@@ -898,7 +958,7 @@ const Desktop = {
           <p style="margin-top:8px"><b>THE LOOP:</b> pair two memes in Breeder2000 &rarr; <b>End Day</b> (a baby hatches overnight, memes age, a stray may show up) &rarr; send up to 4 fighters into a hunt.</p>
           <p style="margin-top:8px"><b>RETIREMENT:</b> any meme that <i>survives</i> a hunt is crowned and <b>retires</b> — it can never fight again, only breed. So you must keep breeding fresh fighters. This is the heart of the game.</p>
           <p style="margin-top:8px"><b>BREEDING:</b> kids inherit one allele per gene from each parent — the dominant one shows. Stats blend with a lucky drift, traits pass down, and mutations sneak in rare genes (RAINBOW! LASER EYES!). Related parents = a <b>Reposted</b> baby. Gross.</p>
-          <p style="margin-top:8px"><b>BATTLES:</b> hex-grid tactics. Move (blue), then act. BONK is free; fancy abilities have cooldowns and scale off BONK or BRAIN. ZOOM sets turn order & movement, LUCK feeds crits. <b>Memes that die in battle are DEAD</b> — unless you necropost them, or burn Copium mid-fight.</p>
+          <p style="margin-top:8px"><b>BATTLES:</b> a cinematic auto-battler. Your memes and the viruses fight automatically by ZOOM order — you jump in with skill: <b>time your STRIKE</b> to hit harder, <b>PARRY</b> incoming attacks, and <b>MASH</b> your type's special. Higher stats + clean timing = wins. <b>Memes that die in battle are DEAD</b> — unless you necropost them, or burn Copium mid-fight.</p>
           <p style="margin-top:8px"><b>UNLOCKS:</b> you start with just breeding and the first hunt. MemeBay, your Loot stash, the Graveyard and the endless Cloud open up as you play.</p>
           <p style="margin-top:8px"><b>GOAL:</b> climb the mission list, delete the SPAM KING, then flex on the endless Cloud with a genetically perfected super-bloodline.</p>
           <p style="margin-top:8px;opacity:.6;font-size:11px">A loving parody of Mewgenics-style breeding tactics. No cats were harmed. Several viruses were.</p>
@@ -923,7 +983,7 @@ const Desktop = {
         Fighters <b>retire</b> after one hunt — so keep the bloodline going. Memes don't live forever; their <b>genes</b> do.</p>
         <p style="font-size:12px;opacity:.6;margin-top:6px">(psst: read README.txt on the desktop for the full manual)</p>
       </div>`,
-      actions: [{ label: 'LESGOOO', cls: 'fun', fn: () => { Game.state.seenIntro = true; Game.save(); SFX.startMusic(); } }],
+      actions: [{ label: "LET'S GO", cls: 'fun', fn: () => { Game.state.seenIntro = true; Game.save(); SFX.startMusic(); } }],
     });
   },
 };

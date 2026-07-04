@@ -37,26 +37,27 @@
       <div id="start-menu" class="hidden"></div>
     </div>
 
-    <!-- ================= BATTLE ================= -->
+    <!-- ================= BATTLE (cinematic arena) ================= -->
     <div id="battle" class="hidden">
       <div id="battle-bg"></div>
-      <div id="battle-header">
-        <div id="battle-title">DOWNLOADS FOLDER</div>
-        <div id="turn-order"></div>
+      <div id="cine-top" class="cine-bar"></div>
+      <div id="cine-bot" class="cine-bar"></div>
+      <div id="stage-camera">
+        <div id="arena">
+          <div id="arena-floor"></div>
+          <div id="speedlines"></div>
+          <div id="arena-units"></div>
+        </div>
+      </div>
+      <div id="battle-top">
+        <div id="battle-stagename">STAGE</div>
         <div id="battle-round">ROUND 1</div>
-      </div>
-      <div id="battle-field-wrap">
-        <div id="battle-field"></div>
-      </div>
-      <div id="battle-bar">
-        <div id="unit-card"></div>
-        <div id="action-buttons"></div>
-        <div id="battle-side-buttons">
+        <div id="battle-top-right">
           <button id="btn-bag" class="chunky-btn small">Bag</button>
-          <button id="btn-endturn" class="chunky-btn small good">End Turn</button>
           <button id="btn-flee" class="chunky-btn small bad">Flee</button>
         </div>
       </div>
+      <div id="qte-layer"></div>
       <div id="battle-log"></div>
     </div>
 
