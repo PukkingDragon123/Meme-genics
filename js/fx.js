@@ -98,7 +98,22 @@ const FX = {
     this.spawn(x, y, { count: 8, colors: ['#bfc7d5', '#9aa2ab', '#5f7377'], up: 3, grav: -0.02, maxSpd: 1.8, sizeMin: 4, sizeMax: 8, lifeMax: 55 });
   },
   rainbow(x, y, n = 10) {
-    this.spawn(x, y, { count: n, colors: ['#fe5f55', '#eac058', '#4bc292', '#009dff', '#8867a5'], maxSpd: 4, grav: 0.05, sizeMin: 3, sizeMax: 7, lifeMax: 34 });
+    this.spawn(x, y, { count: n, colors: ['#e0655e', '#d9b45f', '#57b18d', '#4a9fd4', '#8676a4'], maxSpd: 4, grav: 0.05, sizeMin: 3, sizeMax: 7, lifeMax: 34 });
+  },
+  dust(x, y, n = 9) {
+    this.spawn(x, y, { count: n, colors: ['#b7b0a0', '#9aa2ab', '#cdd4d6'], up: 0.3, grav: 0.05, maxSpd: 3, sizeMin: 3, sizeMax: 7, lifeMax: 26, angle: -Math.PI / 2 });
+  },
+  stars(x, y, n = 6) {
+    this.spawn(x, y, { count: n, colors: ['#d9b45f', '#f2f4f4', '#e6c84d'], maxSpd: 4.5, sizeMin: 3, sizeMax: 6, lifeMax: 34 });
+  },
+  // expanding impact ring (DOM, crisp)
+  ring(x, y, color = '#f2f4f4') {
+    const layer = document.getElementById('float-layer');
+    if (!layer) return;
+    const r = U.el('div', 'fx-ring');
+    r.style.left = x + 'px'; r.style.top = y + 'px'; r.style.borderColor = color;
+    layer.appendChild(r);
+    setTimeout(() => r.remove(), 420);
   },
 };
 

@@ -383,3 +383,49 @@ html, body { height: 100%; font-family: var(--font); color: var(--text); overflo
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: rgba(0,0,0,.2); border-radius: 6px; }
 ::-webkit-scrollbar-thumb { background: var(--panel-3); border-radius: 6px; }
+
+/* ============================================================
+   COMBAT JUICE — jumps, active unit, team tracker, rings
+   ============================================================ */
+.arena-unit.jumping { transition: left .36s cubic-bezier(.3,-0.05,.4,1.2); }
+.arena-unit.jumping .au-body { animation: jumparc .38s ease; }
+@keyframes jumparc {
+  0% { transform: translateY(0) scaleY(1); }
+  12% { transform: translateY(6px) scaleY(.82); }
+  45% { transform: translateY(-46px) scale(1.06); }
+  80% { transform: translateY(0) scaleY(.92); }
+  100% { transform: translateY(0); }
+}
+.arena-unit.active-unit .au-body { filter: drop-shadow(0 0 7px rgba(217,180,95,.9)); }
+.arena-unit.ready-hop .au-body { animation: hopReady .4s ease; }
+@keyframes hopReady { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-16px); } }
+
+.meme-walker.jumping .sprite-box { animation: walkjump .5s ease; }
+@keyframes walkjump {
+  0%,100% { transform: translateY(0); }
+  15% { transform: translateY(3px) scaleY(.86); }
+  50% { transform: translateY(-26px) scale(1.05); }
+  85% { transform: translateY(0) scaleY(.94); }
+}
+.meme-walker.flip.jumping .sprite-box { animation: walkjumpF .5s ease; }
+@keyframes walkjumpF {
+  0%,100% { transform: scaleX(-1) translateY(0); }
+  15% { transform: scaleX(-1) translateY(3px) scaleY(.86); }
+  50% { transform: scaleX(-1) translateY(-26px) scale(1.05); }
+  85% { transform: scaleX(-1) translateY(0) scaleY(.94); }
+}
+
+#team-track { position: absolute; top: 56px; left: 14px; z-index: 318; display: flex; flex-direction: column; gap: 5px; }
+.tt-unit { display: flex; align-items: center; gap: 6px; background: rgba(38,32,58,.62); border-radius: 9px; padding: 4px 8px 4px 4px; box-shadow: var(--emboss-sm); min-width: 152px; transition: transform .12s; }
+.tt-unit.active { outline: 2px solid var(--gold); transform: translateX(4px); }
+.tt-unit.dead { filter: grayscale(1) brightness(.5); }
+.tt-face { width: 30px; height: 30px; display: grid; place-items: center; }
+.tt-face .meme-px { width: 30px; }
+.tt-meta { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.tt-name { font-size: 10px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+.tt-bar { height: 6px; background: rgba(0,0,0,.5); border-radius: 3px; overflow: hidden; }
+.tt-bar > div { height: 100%; background: var(--green); transition: width .2s; }
+.tt-hp { font-size: 9px; color: var(--text-dim); }
+
+.fx-ring { position: absolute; width: 14px; height: 14px; border: 3px solid #fff; border-radius: 50%; transform: translate(-50%,-50%); animation: ringExpand .42s ease-out forwards; pointer-events: none; }
+@keyframes ringExpand { from { width: 8px; height: 8px; opacity: .9; } to { width: 72px; height: 72px; opacity: 0; } }

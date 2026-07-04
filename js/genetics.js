@@ -10,7 +10,6 @@ const Genetics = {
   TRAIT_INHERIT: 0.45,       // chance each parent trait passes down
   TRAIT_MUTATION: 0.18,      // chance of a brand-new trait appearing
   MAX_TRAITS: 4,
-  ADULT_AGE: 1,              // days for a baby to grow up (Mewgenics: overnight)
   MAX_LEVEL: 10,
 
   /* ---------------- allele helpers ---------------- */
@@ -65,17 +64,14 @@ const Genetics = {
       },
       traits: opts.traits || (U.chance(0.7) ? [U.pick(DATA.MUTATION_TRAITS)] : []),
       level: 1, xp: 0,
-      age: opts.age !== undefined ? opts.age : this.ADULT_AGE,
-      lifespan: opts.lifespan || Math.max(16, Math.round(U.gauss(26, 4))),
-      bornDay: opts.bornDay || 1,
-      breedCd: 0,
+      matured: opts.matured !== undefined ? opts.matured : true,  // babies grow up after a fight / over time
+      bornTime: Date.now(),
+      pets: 0,
       equip: { hat: null, held: null },
-      hpCur: null,           // battle-only
       parents: opts.parents || null,
       lineage: opts.lineage || [],
       necroposted: false,
-      retired: false,        // Mewgenics: survives one adventure, then only breeds
-      pettedDay: 0,
+      retired: false,        // survives a fight, then only breeds
       kills: 0, battles: 0,
     };
     meme.pheno = this.computePhenotype(genome);
@@ -159,11 +155,9 @@ const Genetics = {
     const baby = this.newMeme({
       genome, spice, base, traits,
       gen: Math.max(mom.gen, dad.gen) + 1,
-      age: 0,
-      bornDay: day,
+      matured: false,
       parents: [mom.id, dad.id],
       lineage,
-      lifespan: Math.max(16, Math.round(U.gauss(26, 4))),
     });
     return { baby, inbred };
   },
@@ -202,12 +196,6 @@ const Genetics = {
     return s;
   },
 
-  effLifespan(meme) {
-    let l = meme.lifespan;
-    if (meme.traits.includes('immortalsnail')) l += 10;
-    return l + (meme.lifespanBonus || 0);
-  },
-
   abilities(meme) {
     const list = ['bonk'];
     const sig = DATA.GENES.face.alleles[meme.pheno.face].ability;
@@ -231,10 +219,12 @@ const Genetics = {
     return DATA.power(this.effStats(meme), meme.level);
   },
 
+  // babies mature after a fight, a few pets, or ~20s of roaming — no aging/death by time
+  MATURE_MS: 20000,
   stage(meme) {
-    if (meme.age < this.ADULT_AGE) return 'baby';
-    if (meme.age >= this.effLifespan(meme) - 5) return 'elder';
-    return 'adult';
+    if (meme.matured) return 'adult';
+    if (meme.pets >= 3 || (Date.now() - (meme.bornTime || 0)) > this.MATURE_MS) meme.matured = true;
+    return meme.matured ? 'adult' : 'baby';
   },
 
   /* ---------------- xp / levels ---------------- */

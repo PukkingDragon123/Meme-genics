@@ -91,6 +91,7 @@ const Combat = {
     this.placeSide(memes, 'L');
     this.placeSide(foes, 'R');
     for (const u of st.units) this.spawnUnit(u);
+    this.renderTeamTrack();
   },
 
   placeSide(list, side) {
@@ -210,6 +211,11 @@ const Combat = {
   async takeTurn(u) {
     const st = this.state;
     st.busy = true;
+    st.active = u;
+    st.units.forEach(x => x.el && x.el.classList.remove('active-unit'));
+    if (u.el) u.el.classList.add('active-unit', 'ready-hop');
+    setTimeout(() => u.el && u.el.classList.remove('ready-hop'), 400);
+    this.renderTeamTrack();
     this.tickStatuses(u);
     if (u.hp <= 0) { st.busy = false; return; }
 
@@ -380,16 +386,20 @@ const Combat = {
     const dir = u.side === 'L' ? -1 : 1;
     const tx = target.x + dir * 9;
     this.speedlines(true);
-    u.el.classList.add('dashing');
+    u.el.classList.add('dashing', 'jumping');
     u.el.style.left = tx + '%';
     SFX.play('whoosh');
-    await U.wait(230);
+    await U.wait(360);
+    u.el.classList.remove('jumping');
+    const c = centerOf(u.el); FX.dust(c.x, c.y + 30); Shake.hit(3);
     this.speedlines(false);
   },
   async dashBack(u) {
+    u.el.classList.add('jumping');
     u.el.classList.remove('dashing');
     u.el.style.left = u.homeX + '%';
-    await U.wait(200);
+    await U.wait(320);
+    u.el.classList.remove('jumping');
   },
 
   impact(target, dmg, opts = {}) {
@@ -415,13 +425,14 @@ const Combat = {
     target.el.classList.remove('hurt'); void target.el.offsetWidth; target.el.classList.add('hurt');
 
     if (opts.crit || opts.big) {
-      floatText(c.x, c.y - 48, `${dmg}`, { color: '#fe5f55', size: opts.big ? 46 : 38 });
-      if (opts.grade === 'perfect' || opts.big) floatText(c.x, c.y - 86, U.pick(DATA.CRIT_WORDS), { color: '#eac058', size: 20 });
-      FX.boom(c.x, c.y); SFX.play('crit'); Shake.hit(10);
+      floatText(c.x, c.y - 48, `${dmg}`, { color: '#e0655e', size: opts.big ? 46 : 38 });
+      if (opts.grade === 'perfect' || opts.big) floatText(c.x, c.y - 86, U.pick(DATA.CRIT_WORDS), { color: '#d9b45f', size: 20 });
+      FX.boom(c.x, c.y); FX.ring(c.x, c.y, '#d9b45f'); FX.stars(c.x, c.y); SFX.play('crit'); Shake.hit(10);
     } else {
       floatText(c.x, c.y - 46, `${dmg}`, { color: opts.incoming ? '#ffb0aa' : '#fff', size: opts.small ? 22 : 28 });
-      FX.hit(c.x, c.y); SFX.play(target.isMeme ? 'hurt' : 'bonk'); Shake.hit(opts.small ? 3 : 6);
+      FX.hit(c.x, c.y); FX.ring(c.x, c.y, opts.incoming ? '#e0655e' : '#f2f4f4'); SFX.play(target.isMeme ? 'hurt' : 'bonk'); Shake.hit(opts.small ? 3 : 6);
     }
+    this.renderTeamTrack();
     if (target.hp <= 0) this.killUnit(target);
   },
 
@@ -477,6 +488,7 @@ const Combat = {
       }
     }
     setTimeout(() => { if (u.el) u.el.remove(); }, 480);
+    this.renderTeamTrack();
   },
 
   /* ============================================================
@@ -525,6 +537,25 @@ const Combat = {
     if (!u.el) return;
     const bar = u.el.querySelector('.au-hp > div');
     if (bar) bar.style.width = U.clamp(u.hp / u.hpMax * 100, 0, 100) + '%';
+    this.renderTeamTrack();
+  },
+
+  // live tracker of YOUR memes (top-left) — "track your memes too"
+  renderTeamTrack() {
+    const box = document.getElementById('team-track');
+    if (!box || !this.state) return;
+    const memes = this.state.units.filter(u => u.isMeme);
+    box.innerHTML = memes.map(u => {
+      const pct = U.clamp(u.hp / u.hpMax * 100, 0, 100);
+      const dead = u.hp <= 0;
+      const active = u === this.state.active;
+      return `<div class="tt-unit${dead ? ' dead' : ''}${active ? ' active' : ''}">
+        <div class="tt-face">${Sprite.memeSVG(u.meme, { equip: false, size: 30 })}</div>
+        <div class="tt-meta"><span class="tt-name">${U.esc(u.name)}</span>
+          <div class="tt-bar"><div style="width:${pct}%"></div></div>
+          <span class="tt-hp">${Math.max(0, u.hp)}/${u.hpMax}</span></div>
+      </div>`;
+    }).join('');
   },
 
   /* ============================================================
@@ -771,12 +802,9 @@ const Combat = {
       actions: [{
         label: 'Back to Desktop', cls: 'good', fn: () => {
           document.getElementById('battle').classList.add('hidden');
+          document.getElementById('team-track').innerHTML = '';
           this.camWide();
-          Game.advanceDay();
-          Desktop.refreshWalkers();
-          Desktop.refreshAllWindows();
-          Desktop.updateTray();
-          Game.save();
+          Game.postBattle();
         },
       }],
     });

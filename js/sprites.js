@@ -1096,6 +1096,7 @@ const Sprite = {
       }
     }
 
+    Pixel.outline(ctx, this.W, this.H);
     return cv.toDataURL();
   },
 
@@ -1110,6 +1111,7 @@ const Sprite = {
     const oy = Math.max(0, Math.floor((this.H - art.g.length) / 2) + 1);
     Pixel.drawGridOn(ctx, art.g, art.p, ox, oy);
 
+    Pixel.outline(ctx, this.W, this.H);
     if (zombie) {
       ctx.globalCompositeOperation = 'source-atop';
       ctx.fillStyle = 'rgba(95,174,95,.32)';

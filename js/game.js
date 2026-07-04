@@ -1,11 +1,12 @@
 /* ============================================================
    MEME-GENICS — game.js
-   Global state, save/load, the DAY cycle, economy, shop,
-   overnight breeding, progressive unlocks. Mewgenics loop.
+   Global state, save/load, economy, shop, instant breeding,
+   progressive unlocks. No day system — turnover comes from
+   retirement and battle deaths.
    ============================================================ */
 
 const Game = {
-  SAVE_KEY: 'memegenics_save_v2',
+  SAVE_KEY: 'memegenics_save_v3',
   CAPACITY: 12,
 
   state: null,
@@ -14,7 +15,6 @@ const Game = {
 
   newState() {
     return {
-      day: 1,
       coins: 40,
       memes: [],
       graveyard: [],
@@ -22,10 +22,8 @@ const Game = {
       missionsDone: {},
       cloudWave: 0,
       shopStock: [],
-      shopDay: 0,
       seenIntro: false,
-      pairing: null,          // {a, b} — tonight's breeding couple
-      unlocks: {},            // shop / inventory / graveyard / endless
+      unlocks: {},
       stats: { battles: 0, wins: 0, virusesDeleted: 0, memesBred: 0, retired: 0 },
     };
   },
@@ -39,10 +37,9 @@ const Game = {
   },
 
   save() {
-    // never persist mid-battle: battle mutations only become canon on Combat.finish()
     if (typeof Combat !== 'undefined' && Combat.state && !Combat.state.over) return;
     try { localStorage.setItem(this.SAVE_KEY, JSON.stringify(this.state)); }
-    catch (e) { /* storage unavailable — session play only */ }
+    catch (e) { /* storage unavailable */ }
   },
 
   load() {
@@ -56,10 +53,7 @@ const Game = {
     } catch (e) { return false; }
   },
 
-  reset() {
-    localStorage.removeItem(this.SAVE_KEY);
-    location.reload();
-  },
+  reset() { localStorage.removeItem(this.SAVE_KEY); location.reload(); },
 
   /* ---------------- accessors ---------------- */
 
@@ -109,10 +103,7 @@ const Game = {
 
   /* ---------------- inventory ---------------- */
 
-  addItem(id, n = 1) {
-    this.unlock('inventory');
-    this.state.inventory[id] = (this.state.inventory[id] || 0) + n;
-  },
+  addItem(id, n = 1) { this.unlock('inventory'); this.state.inventory[id] = (this.state.inventory[id] || 0) + n; },
   removeItem(id, n = 1) {
     if (!this.state.inventory[id]) return false;
     this.state.inventory[id] -= n;
@@ -126,7 +117,6 @@ const Game = {
     const pool = Object.keys(DATA.ITEMS);
     this.state.shopStock = U.shuffle(pool).slice(0, 6);
     if (!this.state.shopStock.includes('pizza')) this.state.shopStock[0] = 'pizza';
-    this.state.shopDay = this.state.day;
   },
 
   /* ---------------- meme lifecycle ---------------- */
@@ -142,16 +132,13 @@ const Game = {
   killMeme(meme, cause) {
     const idx = this.state.memes.indexOf(meme);
     if (idx >= 0) this.state.memes.splice(idx, 1);
-    this.state.graveyard.push({
-      meme, cause, day: this.state.day,
-      epitaph: U.pick(DATA.EPITAPHS),
-    });
+    this.state.graveyard.push({ meme, cause, epitaph: U.pick(DATA.EPITAPHS) });
     this.unlock('graveyard');
     Desktop.removeWalker(meme.id);
     Desktop.updateTray();
   },
 
-  // voluntary retirement to the Hall of Fame — a coin payout + roster valve
+  // send a meme to the Hall of Fame for coins (roster valve + coin sink)
   donate(meme) {
     const payout = 15 + meme.gen * 8 + meme.level * 6;
     const idx = this.state.memes.indexOf(meme);
@@ -159,141 +146,49 @@ const Game = {
     Desktop.removeWalker(meme.id);
     this.addCoins(payout, { x: window.innerWidth / 2, y: window.innerHeight / 2 });
     Desktop.updateTray();
-    SFX.play('coin');
     toast(`<b>${U.esc(meme.name)}</b> joined the Hall of Fame. +${payout}`, 3200, 'trophy');
     return payout;
   },
 
   /* ============================================================
-     THE DAY CYCLE — the core Mewgenics beat.
-     Ending the day advances time: overnight breeding resolves,
-     memes age, a stray may show up, old memes go stale.
+     POST-BATTLE — the between-fights beat (no calendar day).
+     Babies grow up, the shop restocks, a stray may show up.
      ============================================================ */
-  advanceDay(silent) {
-    const s = this.state;
-    s.day++;
-    const obituaries = [];
-    const matured = [];
-    const births = [];
-
-    // --- overnight breeding (the paired couple) ---
-    if (s.pairing) {
-      const A = this.getMeme(s.pairing.a), B = this.getMeme(s.pairing.b);
-      s.pairing = null;
-      if (A && B && Genetics.stage(A) !== 'baby' && Genetics.stage(B) !== 'baby') {
-        const litter = U.chance(0.25) ? 2 : 1;
-        for (let i = 0; i < litter && s.memes.length < this.CAPACITY; i++) {
-          const res = Genetics.breed(A, B, s.day);
-          s.memes.push(res.baby);
-          Desktop.spawnWalker(res.baby);
-          births.push(res);
-          s.stats.memesBred++;
-        }
-        if (births.length) { A.breedCd = 3; B.breedCd = 3; }
-      }
-    }
-
-    // --- aging ---
-    for (const m of s.memes.slice()) {
-      m.age++;
-      if (m.breedCd > 0) m.breedCd--;
-      if (m.age === Genetics.ADULT_AGE) matured.push(m);
-      if (m.age >= Genetics.effLifespan(m)) obituaries.push(m);
-    }
-    for (const m of obituaries) this.killMeme(m, 'went stale (old age)');
-
-    if (s.day - s.shopDay >= 1 && this.isUnlocked('shop')) this.restockShop();
-
-    Desktop.updateTray();
+  postBattle() {
+    // grow all babies into adults after a fight
+    for (const m of this.state.memes) if (!m.matured) m.matured = true;
+    if (this.isUnlocked('shop')) this.restockShop();
+    if (U.chance(0.4) && this.state.memes.length < this.CAPACITY) this.strayEvent();
+    else if (U.chance(0.3)) { const amt = U.randInt(6, 16); this.addCoins(amt, null); toast(`Found ${amt} coins in the cache!`, 2600, 'coin'); }
+    this.ensureNotSoftlocked();
     Desktop.refreshWalkers();
     Desktop.refreshAllWindows();
-
-    // --- morning births ---
-    for (const { baby, inbred } of births) {
-      SFX.play('birth');
-      Modal.show({
-        defer: true,
-        title: `${Icon.ico('egg', 22)} A meme was born overnight!`,
-        bodyHTML: `<div style="text-align:center">
-          <div style="width:120px;margin:0 auto">${Sprite.memeSVG(baby, { size: 120 })}</div>
-          <h3>${U.esc(baby.name)} <span class="gen">GEN ${baby.gen}</span></h3>
-          <p style="font-size:12px;opacity:.8">${U.esc(Genetics.describe(baby))}</p>
-          <div class="trait-list" style="justify-content:center;margin:6px 0">${baby.traits.map(t => Desktop.traitPill(t)).join('') || '<span style="opacity:.5;font-size:12px">no traits — a blank slate</span>'}</div>
-          <div class="ability-list" style="justify-content:center">${Genetics.abilities(baby).map(a => Desktop.abilityPill(a)).join('')}</div>
-          ${inbred ? '<p style="color:var(--red);font-size:12px"><b>...it is a repost.</b></p>' : ''}
-          <p style="font-size:11px;opacity:.6;margin-top:6px">Grows into a fighter tomorrow.</p>
-        </div>`,
-      });
-    }
-
-    // --- announcements ---
-    for (const m of matured) {
-      toast(`<b>${U.esc(m.name)}</b> grew into a full-size meme!`, 3000, 'sprout');
-      SFX.play('levelup');
-    }
-    for (const m of obituaries) {
-      SFX.play('sadtrombone');
-      Modal.show({
-        defer: true,
-        title: `${Icon.ico('skull', 22)} Press F`,
-        bodyHTML: `<div style="text-align:center">
-          <div style="width:80px;margin:0 auto">${Sprite.tombSVG(80)}</div>
-          <p style="margin-top:8px"><b>${U.esc(m.name)}</b> ${U.esc(U.pick(DATA.EPITAPHS))}.</p>
-          <p style="font-size:12px;opacity:.7">Survived ${m.age} days · Gen ${m.gen} · ${m.kills} viruses deleted</p>
-          <p style="font-size:12px;margin-top:6px">Their genes live on. Visit the Graveyard to necropost them... for a price.</p>
-        </div>`,
-        actions: [{ label: 'F', cls: 'bad' }],
-      });
-    }
-    for (const m of s.memes) {
-      const left = Genetics.effLifespan(m) - m.age;
-      if (left === 3) toast(`<b>${U.esc(m.name)}</b> is getting stale... 3 days of freshness left!`, 3000, 'hourglass');
-    }
-
-    if (!silent) this.morningEvent();
-    this.ensureNotSoftlocked();
+    Desktop.updateTray();
     this.save();
   },
 
-  /* ---------------- morning events ---------------- */
-
-  morningEvent() {
-    const s = this.state;
-    const roll = Math.random();
-
-    // a stray meme shows up at the door (Mewgenics staple)
-    if (roll < 0.32 && s.memes.length < this.CAPACITY) {
-      const wanderer = Genetics.newMeme({ bornDay: s.day });
-      Modal.show({
-        defer: true,
-        title: `${Icon.ico('gift', 22)} A stray showed up`,
-        bodyHTML: `<div style="text-align:center">
-          <div style="width:110px;margin:0 auto">${Sprite.memeSVG(wanderer, { size: 110 })}</div>
-          <p><b>${U.esc(wanderer.name)}</b></p>
-          <p style="font-size:12px;opacity:.75">${U.esc(U.pick(DATA.WANDERER_INTROS))}</p>
-          <p style="font-size:12px;margin-top:4px">${U.esc(Genetics.describe(wanderer))}</p>
-          <div class="trait-list" style="justify-content:center;margin-top:6px">${wanderer.traits.map(t => Desktop.traitPill(t)).join('')}</div>
-        </div>`,
-        actions: [
-          { label: 'Adopt!', cls: 'good', fn: () => { this.addMeme(wanderer); SFX.play('birth'); toast(`${U.esc(wanderer.name)} moved onto your desktop!`, 3000, 'gift'); this.save(); } },
-          { label: 'No thanks', cls: '' },
-        ],
-      });
-    } else if (roll < 0.46) {
-      const amt = U.randInt(8, 22);
-      this.addCoins(amt, { x: window.innerWidth / 2, y: window.innerHeight / 2 });
-      toast(`STONKS! The meme market went up. +${amt}`, 3000, 'chartup');
-    } else if (roll < 0.56 && s.memes.length) {
-      const m = U.pick(s.memes);
-      const ups = Genetics.grantXp(m, U.randInt(8, 16));
-      toast(`<b>${U.esc(m.name)}</b> had an original thought (rare). +XP${ups ? ' — LEVEL UP!' : ''}`, 3000, 'star');
-      if (ups) SFX.play('levelup');
-    }
+  strayEvent() {
+    const wanderer = Genetics.newMeme({});
+    Modal.show({
+      defer: true,
+      title: `${Icon.ico('gift', 22)} A stray showed up`,
+      bodyHTML: `<div style="text-align:center">
+        <div style="width:110px;margin:0 auto">${Sprite.memeSVG(wanderer, { size: 110 })}</div>
+        <p><b>${U.esc(wanderer.name)}</b></p>
+        <p style="font-size:12px;opacity:.75">${U.esc(U.pick(DATA.WANDERER_INTROS))}</p>
+        <p style="font-size:12px;margin-top:4px">${U.esc(Genetics.describe(wanderer))}</p>
+        <div class="trait-list" style="justify-content:center;margin-top:6px">${wanderer.traits.map(t => Desktop.traitPill(t)).join('')}</div>
+      </div>`,
+      actions: [
+        { label: 'Adopt!', cls: 'good', fn: () => { this.addMeme(wanderer); SFX.play('birth'); toast(`${U.esc(wanderer.name)} moved in!`, 3000, 'gift'); this.save(); } },
+        { label: 'No thanks', cls: '' },
+      ],
+    });
   },
 
   ensureNotSoftlocked() {
     if (this.state.memes.length === 0) {
-      const rescue = Genetics.newMeme({ bornDay: this.state.day, name: 'Recycle Bin ' + Genetics.randomName() });
+      const rescue = Genetics.newMeme({ name: 'Recycle Bin ' + Genetics.randomName() });
       this.state.memes.push(rescue);
       Desktop.spawnWalker(rescue);
       Modal.show({
@@ -313,15 +208,16 @@ const Game = {
     const it = DATA.ITEMS[itemId];
     if (!it || !it.home) return false;
     switch (it.home) {
-      case 'lifespan':
-        meme.lifespanBonus = (meme.lifespanBonus || 0) + it.power;
-        toast(`<b>${U.esc(meme.name)}</b> will stay fresh ${it.power} extra days!`, 3000, 'flask');
-        SFX.play('heal');
+      case 'xp': {
+        const ups = Genetics.grantXp(meme, it.power || 40);
+        toast(`<b>${U.esc(meme.name)}</b> gained XP${ups ? ' — LEVEL UP!' : ''}!`, 3000, 'star');
+        SFX.play(ups ? 'levelup' : 'heal');
         break;
+      }
       case 'grow':
-        if (Genetics.stage(meme) !== 'baby') { toast('That meme is already fully grown!', 3000, 'flower'); SFX.play('error'); return false; }
-        meme.age = Genetics.ADULT_AGE;
-        toast(`<b>${U.esc(meme.name)}</b> grew up INSTANTLY. Nature is amazing (this is not nature).`, 3200, 'flower');
+        if (Genetics.stage(meme) !== 'baby') { toast('That meme is already grown!', 3000, 'flower'); SFX.play('error'); return false; }
+        meme.matured = true;
+        toast(`<b>${U.esc(meme.name)}</b> grew up INSTANTLY!`, 3200, 'flower');
         SFX.play('levelup');
         break;
       case 'trait': {
@@ -343,7 +239,7 @@ const Game = {
         if (!bads.length) { toast('This meme is already fresh af.', 3000, 'spray'); SFX.play('error'); return false; }
         const t = U.pick(bads);
         meme.traits.splice(meme.traits.indexOf(t), 1);
-        toast(`Febreze'd the <b>${DATA.TRAITS[t].name}</b> right out of <b>${U.esc(meme.name)}</b>!`, 3200, 'spray');
+        toast(`Cleansed <b>${DATA.TRAITS[t].name}</b> from <b>${U.esc(meme.name)}</b>!`, 3200, 'spray');
         SFX.play('heal');
         break;
       }
@@ -366,8 +262,8 @@ const Game = {
     if (!this.spend(cost)) return false;
     const m = entry.meme;
     m.necroposted = true;
-    m.retired = false;   // a fresh un-life, ready to fight again
-    m.age = Math.max(Genetics.ADULT_AGE, Math.round(Genetics.effLifespan(m) * 0.5));
+    m.retired = false;
+    m.matured = true;
     if (!m.traits.includes('zombie')) {
       if (m.traits.length >= Genetics.MAX_TRAITS) m.traits.pop();
       m.traits.push('zombie');

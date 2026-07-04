@@ -23,18 +23,22 @@ open index.html
 
 ## The loop
 
-1. **Breed** — pair two adults in `Breeder2000.exe`. Kids inherit one allele per gene from each
-   parent (the dominant one shows), stats blend with a lucky drift, traits pass down, and mutations
-   sneak in rare genes. **Breeding is the strategy** — every generation should be stronger.
-2. **End Day** — a baby hatches overnight, memes age, a stray may wander in.
+1. **Breed** — fuse two adults in `Breeder2000.exe`; tap the egg and a baby hatches on the spot.
+   Kids inherit one allele per gene from each parent (the dominant one shows), stats blend with a
+   lucky drift, traits pass down, and mutations sneak in rare genes. **Breeding for stronger stats
+   is the whole strategy** — every generation should out-power the last.
+2. **Grow** — babies grow into fighters after their first battle (or a little time / a few pets).
 3. **Fight** — pick a stage on the **map**, deploy up to 4 memes.
 4. **Retire** — any meme that survives a fight is crowned and **retires** (breed only), so you must
    keep breeding fresh fighters. Fallen memes are permanently dead (necropost or Copium excepted).
 
+There's no calendar — you play at your own pace, breeding and fighting whenever you like.
+
 ## Combat — cinematic auto-battler + skill
 
-Fights play out automatically by **ZOOM** (speed) order, with the camera zooming and panning to
-the action. You jump in with skill:
+Fights play out automatically by **ZOOM** (speed) order — memes **leap** across the arena to clash,
+the camera zooms and pans to the action, and hits kick up dust, rings and screen shake. A live
+**team tracker** shows your memes' health the whole time. You jump in with skill:
 
 - **STRIKE** — a timing bar on every attack. Nail the sweet spot for bonus damage and crits.
 - **PARRY** — tap in the window when a virus attacks to block (a *perfect* parry reflects damage).

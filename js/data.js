@@ -205,7 +205,7 @@ DATA.ITEMS = {
   energy:    { name: 'G-Fuel Barrel',   ico: 'energycan',  kind: 'consumable', price: 20, battle: 'energy', desc: 'BATTLE: refresh a meme (special ready + extra turn).' },
   copium:    { name: 'Tank of Copium',  ico: 'copiumtank', kind: 'consumable', price: 80, battle: 'revive', desc: 'BATTLE: revive a fallen meme at 50% HP.' },
   usbstick:  { name: 'Antivirus USB',   ico: 'usb',        kind: 'consumable', price: 70, battle: 'nuke', power: 12, desc: 'BATTLE: deals 12 damage to EVERY virus.' },
-  preservative:{ name: 'Preservatives', ico: 'flask',      kind: 'consumable', price: 60, home: 'lifespan', power: 6, desc: 'HOME: a meme stays fresh 6 extra days.' },
+  preservative:{ name: 'Brain Juice',   ico: 'flask',      kind: 'consumable', price: 60, home: 'xp', power: 45, desc: 'HOME: feeds a meme a big chunk of XP.' },
   miraclegro:{ name: 'Miracle-Gro',     ico: 'flower',     kind: 'consumable', price: 35, home: 'grow', desc: 'HOME: instantly grows a baby into an adult.' },
   dankserum: { name: 'Serum of Dank',   ico: 'syringe',    kind: 'consumable', price: 100, home: 'trait', desc: 'HOME: injects a random GOOD trait.' },
   febreze:   { name: 'Meme Febreze',    ico: 'spray',      kind: 'consumable', price: 90, home: 'cleanse', desc: 'HOME: removes a random BAD trait.' },

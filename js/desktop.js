@@ -54,7 +54,6 @@ const Desktop = {
   initTray() {
     document.getElementById('start-ico').innerHTML = Icon.ico('smiley', 20);
     U.qs('#tray-coins .ci').innerHTML = Icon.ico('coin', 16);
-    U.qs('#tray-day .ci').innerHTML = Icon.ico('day', 16);
     U.qs('#tray-pop .ci').innerHTML = Icon.ico('roster', 16);
     document.getElementById('tray-sound').innerHTML = Icon.ico('sound', 16);
     document.getElementById('tray-music').innerHTML = Icon.ico('music', 16);
@@ -92,7 +91,6 @@ const Desktop = {
     sm.innerHTML = `<div class="sm-head">MEME-GENICS v5.0</div>`;
     const items = this.appList().slice();
     items.push({ sep: true });
-    items.push({ ico: 'moon', label: 'End Day', fn: () => this.endDay() });
     items.push({ ico: 'reset', label: 'New Game', fn: () => this.confirmReset() });
     for (const it of items) {
       if (it.sep) { sm.appendChild(U.el('div', 'sm-sep')); continue; }
@@ -116,22 +114,7 @@ const Desktop = {
   updateTray() {
     const s = Game.state;
     U.qs('#tray-coins b').textContent = s.coins;
-    U.qs('#tray-day b').textContent = s.day;
     U.qs('#tray-pop b').textContent = s.memes.length;
-  },
-
-  endDay() {
-    SFX.play('close');
-    const nesting = Game.state.pairing
-      ? `<p style="color:var(--green);font-size:12px">A meme couple is nesting — a baby will hatch overnight.</p>` : '';
-    Modal.show({
-      title: `${Icon.ico('moon', 22)} End the day?`,
-      bodyHTML: `<div style="text-align:center"><p>Sleep until tomorrow. Memes age a day, breeding resolves, and a stray might wander in.</p>${nesting}</div>`,
-      actions: [
-        { label: 'Sleep', cls: 'good', fn: () => { Game.advanceDay(); toast('A new day on the desktop!', 3000, 'day'); } },
-        { label: 'Stay up', cls: '' },
-      ],
-    });
   },
 
   confirmReset() {
@@ -325,10 +308,22 @@ const Desktop = {
   },
 
   stepWalker(w, dt) {
+    // a baby that just grew up? refresh its look
+    if (w.el.classList.contains('baby') && Genetics.stage(w.meme) !== 'baby') {
+      w.el.classList.remove('baby');
+      w.el.querySelector('.sprite-box').innerHTML = Sprite.memeSVG(w.meme, { size: 72 });
+      w.el.querySelector('.name-tag').innerHTML = this.nameTag(w.meme);
+    }
     if (w.state === 'dragged') return;
+    // occasional happy jump while roaming
+    w.jumpTimer = (w.jumpTimer || U.rand(2, 6)) - dt;
+    if (w.jumpTimer <= 0 && w.state !== 'sleep') {
+      w.jumpTimer = U.rand(3, 8);
+      this.walkerJump(w);
+    }
     w.timer -= dt;
     if (w.state === 'idle' && w.timer <= 0) {
-      if (U.chance(0.2)) {
+      if (U.chance(0.18)) {
         w.state = 'sleep'; w.timer = U.rand(4, 8);
         const z = U.el('div', 'zzz', Icon.ico('moon', 16));
         w.el.appendChild(z);
@@ -343,7 +338,7 @@ const Desktop = {
       w.state = 'idle'; w.timer = U.rand(1, 4);
       const z = w.el.querySelector('.zzz'); if (z) z.remove();
     } else if (w.state === 'walk') {
-      const spd = (Genetics.stage(w.meme) === 'baby' ? 40 : 62) + Genetics.effStats(w.meme).spd * 3;
+      const spd = (Genetics.stage(w.meme) === 'baby' ? 42 : 66) + Genetics.effStats(w.meme).spd * 3;
       const dx = w.tx - w.x, dy = w.ty - w.y;
       const dist = Math.hypot(dx, dy);
       if (dist < 6) {
@@ -358,6 +353,15 @@ const Desktop = {
     }
   },
 
+  walkerJump(w) {
+    if (w.el.classList.contains('jumping')) return;
+    w.el.classList.add('jumping');
+    SFX.play('boing');
+    const c = centerOf(w.el);
+    FX.dust(c.x, c.y + 26);
+    setTimeout(() => w.el.classList.remove('jumping'), 520);
+  },
+
   petMeme(meme) {
     const w = this.walkers[meme.id];
     if (!w) return;
@@ -365,13 +369,16 @@ const Desktop = {
     FX.hearts(c.x, c.y - 20);
     SFX.play('pet');
     this.sayBubble(meme.id, U.pick(DATA.PET_LINES));
-    if (meme.pettedDay !== Game.state.day) {
-      meme.pettedDay = Game.state.day;
-      const ups = Genetics.grantXp(meme, 4);
-      floatText(c.x, c.y - 50, '+4 XP', { color: '#4bc292', size: 18 });
+    meme.pets = (meme.pets || 0) + 1;
+    const now = Date.now();
+    if (now - (meme._lastPet || 0) > 1800) {
+      meme._lastPet = now;
+      const ups = Genetics.grantXp(meme, 3);
+      floatText(c.x, c.y - 50, '+3 XP', { color: '#57b18d', size: 18 });
       if (ups) { SFX.play('levelup'); toast(`<b>${U.esc(meme.name)}</b> leveled up from pure affection!`, 3000, 'star'); }
       Game.save();
     }
+    if (meme.pets === 3 && !meme.matured) { meme.matured = true; toast(`<b>${U.esc(meme.name)}</b> grew up!`, 2600, 'sprout'); this.refreshWalkers(); }
   },
 
   sayBubble(memeId, text) {
@@ -428,18 +435,14 @@ const Desktop = {
         const m = Game.getMeme(memeId);
         if (!m) { this.closeWindow('card_' + memeId); return; }
         const stage = Genetics.stage(m);
-        const life = Genetics.effLifespan(m);
-        const agePct = U.clamp(m.age / life * 100, 0, 100);
         const xpNeed = Genetics.xpToLevel(m.level);
         body.innerHTML = `
         <div class="meme-card">
           <div class="portrait">${Sprite.memeSVG(m, { size: 104 })}<span class="lvl-chip">Lv ${m.level}</span></div>
           <div class="info">
-            <h3>${U.esc(m.name)} <span class="gen">GEN ${m.gen}</span>${m.retired ? `<span class="crown-chip">${Icon.ico('crown', 10)} RETIRED</span>` : ''}</h3>
+            <h3>${U.esc(m.name)} <span class="gen">GEN ${m.gen}</span>${m.retired ? `<span class="crown-chip">${Icon.ico('crown', 10)} RETIRED</span>` : ''}${stage === 'baby' ? `<span class="crown-chip" style="background:var(--blue);color:#fff">${Icon.ico('egg', 10)} BABY</span>` : ''}</h3>
             <div class="power-chip">${Icon.ico('bolt', 13)} POWER ${Genetics.power(m)} · ${DATA.GENES.face.alleles[m.pheno.face].label}</div>
-            <div class="flavor">${U.esc(DATA.FLAVOR_BY_FACE[m.pheno.face] || '')} ${stage === 'baby' ? '<b>(baby — too smol to fight)</b>' : ''}</div>
-            <div class="age-meter">${Icon.ico(stage === 'elder' ? 'wilt' : 'sprout', 13)} Age ${m.age}/${life}
-              <div class="stat-bar sb-age" style="flex:1"><div style="width:${agePct}%"></div></div></div>
+            <div class="flavor">${U.esc(DATA.FLAVOR_BY_FACE[m.pheno.face] || '')} ${stage === 'baby' ? '<b>(baby — grows up after a fight)</b>' : ''}</div>
             ${this.statRowsHTML(m)}
             <div class="stat-row" style="font-size:11px"><span class="s-name">${Icon.ico('star', 13)} XP</span>
               <div class="stat-bar sb-lck"><div style="width:${U.clamp(m.xp / xpNeed * 100, 0, 100)}%"></div></div>
@@ -465,7 +468,7 @@ const Desktop = {
           return `${DATA.GENES[g].label}: ${fmt(a)} / ${fmt(b)}`;
         }).join(' &nbsp;·&nbsp; ')}</div>
         <div style="font-size:11px;opacity:.6;margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span>${Icon.ico('skull', 12)} ${m.kills} deleted</span><span>${Icon.ico('swords', 12)} ${m.battles} battles</span>${m.breedCd ? `<span>${Icon.ico('heart', 12)} nest cd: ${m.breedCd}d</span>` : ''}</div>
+          <span>${Icon.ico('skull', 12)} ${m.kills} deleted</span><span>${Icon.ico('swords', 12)} ${m.battles} battles</span></div>
         <div class="card-actions">
           <button class="chunky-btn small fun" data-act="pet">${Icon.ico('paw', 16)} Pet</button>
           <button class="chunky-btn small info" data-act="rename">${Icon.ico('pencil', 16)} Rename</button>
@@ -573,7 +576,7 @@ const Desktop = {
   },
 
   /* ============================================================
-     BREEDER 2000 — the Love Nest (overnight breeding)
+     BREEDER 2000 — pick two adults, hatch a baby instantly
      ============================================================ */
   breedSel: [null, null],
 
@@ -585,30 +588,6 @@ const Desktop = {
   },
 
   renderBreeder(body) {
-    // if a pair is already nesting, show its status
-    if (Game.state.pairing) {
-      const A = Game.getMeme(Game.state.pairing.a), B = Game.getMeme(Game.state.pairing.b);
-      if (A && B) {
-        body.innerHTML = '';
-        const wrap = U.el('div', 'breed-wrap');
-        const parents = U.el('div', 'breed-parents');
-        parents.innerHTML = `<div class="parent-slot filled">${Sprite.memeSVG(A, { size: 74 })}<span class="p-name">${U.esc(A.name)}</span></div>
-          <div class="breed-heart">${Icon.ico('heart', 30)}</div>
-          <div class="parent-slot filled">${Sprite.memeSVG(B, { size: 74 })}<span class="p-name">${U.esc(B.name)}</span></div>`;
-        wrap.appendChild(parents);
-        wrap.appendChild(U.el('div', 'nest-status', `<b>${U.esc(A.name)}</b> & <b>${U.esc(B.name)}</b> are nesting.<br>A baby hatches when you <b>End Day</b>.`));
-        const endBtn = U.el('button', 'chunky-btn good', `${Icon.ico('moon', 18)} End Day now`);
-        endBtn.onclick = () => { this.closeWindow('breeder'); this.endDay(); };
-        wrap.appendChild(endBtn);
-        const cancel = U.el('button', 'chunky-btn small', 'Cancel pairing');
-        cancel.onclick = () => { Game.state.pairing = null; Game.save(); this.renderBreeder(body); };
-        wrap.appendChild(cancel);
-        body.appendChild(wrap);
-        return;
-      }
-      Game.state.pairing = null;
-    }
-
     const [aId, bId] = this.breedSel;
     const A = aId ? Game.getMeme(aId) : null;
     const B = bId ? Game.getMeme(bId) : null;
@@ -619,7 +598,7 @@ const Desktop = {
     const mkSlot = (meme, idx) => {
       const slot = U.el('div', 'parent-slot' + (meme ? ' filled' : ''));
       slot.innerHTML = meme
-        ? `${Sprite.memeSVG(meme, { size: 74 })}<span class="p-name">${U.esc(meme.name)}</span><span class="p-hint">${meme.breedCd ? 'cooldown ' + meme.breedCd + 'd' : meme.retired ? 'retired breeder' : 'ready to mingle'}</span>`
+        ? `${Sprite.memeSVG(meme, { size: 74 })}<span class="p-name">${U.esc(meme.name)}</span><span class="p-hint">${Icon.ico('bolt', 11)} ${Genetics.power(meme)}${meme.retired ? ' · retired' : ''}</span>`
         : `<span class="p-empty">${Icon.ico('plus', 40)}</span><span class="p-hint">choose a meme</span>`;
       slot.onclick = () => { SFX.play('click'); this.breedSel[idx] = null; this.renderBreederPicker(body, idx); };
       return slot;
@@ -633,37 +612,32 @@ const Desktop = {
     let error = null;
     if (A && B) {
       if (A.id === B.id) error = 'A meme cannot breed with itself. It has tried.';
-      else if (A.breedCd || B.breedCd) error = 'Somebody is on breeding cooldown. Patience.';
       else if (Game.state.memes.length >= Game.CAPACITY) error = 'Desktop full! (max ' + Game.CAPACITY + ' memes)';
       else if (Genetics.related(A, B)) warn.innerHTML = `${Icon.ico('warning', 14)} REPOST ALERT: related memes. The baby will be <b>Reposted</b> (-2 all stats).`;
     }
     if (error) warn.innerHTML = `${Icon.ico('warning', 14)} ${error}`;
     wrap.appendChild(warn);
 
-    const go = U.el('button', 'chunky-btn fun breed-go', `${Icon.ico('heart', 18)} SET AS TONIGHT'S PAIR`);
+    const go = U.el('button', 'chunky-btn fun breed-go', `${Icon.ico('heart', 18)} FUSE THE MEMES`);
     go.disabled = !(A && B) || !!error;
-    go.onclick = () => this.setPair(A, B);
+    go.onclick = () => this.doBreed(A, B);
     wrap.appendChild(go);
 
-    wrap.appendChild(U.el('p', '', `<span style="font-size:11px;opacity:.6">Pair two adults, then <b>End Day</b> — a baby hatches overnight. Kids inherit one random allele per gene from each parent (dominant shows), blend stats with a lucky drift, and can mutate rare genes. Retired memes can still breed.</span>`));
+    wrap.appendChild(U.el('p', '', `<span style="font-size:11px;opacity:.6">Kids inherit one random allele per gene from each parent (the dominant one shows), blend stats with a lucky drift, and can mutate rare genes. Babies grow up after a fight. Breeding for stronger stats is how you climb. Retired memes can still breed.</span>`));
     body.appendChild(wrap);
   },
 
   renderBreederPicker(body, idx) {
     body.innerHTML = '';
     const wrap = U.el('div', 'breed-wrap');
-    wrap.appendChild(U.el('p', '', `<b>Pick parent ${idx === 0 ? 'A' : 'B'}:</b> <span style="font-size:12px;opacity:.6">(adults only, no cooldown)</span>`));
+    wrap.appendChild(U.el('p', '', `<b>Pick parent ${idx === 0 ? 'A' : 'B'}:</b> <span style="font-size:12px;opacity:.6">(adults only)</span>`));
     const grid = U.el('div', 'breed-pick-grid');
     for (const m of Game.state.memes) {
-      const eligible = Genetics.stage(m) !== 'baby' && !m.breedCd && this.breedSel[1 - idx] !== m.id;
+      const eligible = Genetics.stage(m) !== 'baby' && this.breedSel[1 - idx] !== m.id;
       const cell = U.el('div', 'mini-meme' + (eligible ? '' : ' disabled'));
       cell.innerHTML = `${m.retired ? `<span class="mm-flag">${Icon.ico('crown', 16)}</span>` : ''}${Sprite.memeSVG(m, { size: 60 })}<span class="mm-name">${U.esc(m.name)}</span>
-        <span class="mm-sub">${Genetics.stage(m) === 'baby' ? 'baby' : m.breedCd ? 'cd ' + m.breedCd + 'd' : 'Gen' + m.gen}</span>`;
-      if (eligible) cell.onclick = () => {
-        SFX.play('select');
-        this.breedSel[idx] = m.id;
-        this.renderBreeder(body);
-      };
+        <span class="mm-sub">${Genetics.stage(m) === 'baby' ? 'baby' : Icon.ico('bolt', 11) + ' ' + Genetics.power(m)}</span>`;
+      if (eligible) cell.onclick = () => { SFX.play('select'); this.breedSel[idx] = m.id; this.renderBreeder(body); };
       grid.appendChild(cell);
     }
     wrap.appendChild(grid);
@@ -673,19 +647,49 @@ const Desktop = {
     body.appendChild(wrap);
   },
 
-  setPair(A, B) {
+  doBreed(A, B) {
     if (Game.state.memes.length >= Game.CAPACITY) {
-      SFX.play('error');
-      toast('Desktop is full — no room for a baby meme!', 3000, 'warning');
-      return;
+      SFX.play('error'); toast('Desktop is full — no room for a baby meme!', 3000, 'warning');
+      this.refreshWindow('breeder'); return;
     }
-    Game.state.pairing = { a: A.id, b: B.id };
+    const { baby, inbred } = Genetics.breed(A, B);
+    Game.state.stats.memesBred++;
     this.breedSel = [null, null];
     SFX.play('boing');
-    FX.hearts(window.innerWidth / 2, window.innerHeight / 2, 10);
-    Game.save();
-    toast(`<b>${U.esc(A.name)}</b> & <b>${U.esc(B.name)}</b> are nesting. End the day to meet the baby!`, 3600, 'heart');
-    this.refreshWindow('breeder');
+
+    // egg-tap hatch ceremony
+    const node = U.el('div', 'egg-reveal');
+    node.innerHTML = `<p><b>${U.esc(A.name)}</b> + <b>${U.esc(B.name)}</b> = ???</p>
+      ${Sprite.eggHTML(0, 96)}<p style="font-size:12px;opacity:.6">tap the egg!</p>`;
+    Modal.show({ title: `${Icon.ico('egg', 22)} Something is hatching...`, bodyNode: node, actions: [], noClose: true });
+    let taps = 0;
+    let egg = node.querySelector('.egg-px');
+    const tap = () => {
+      taps++;
+      SFX.play('egg');
+      const c = centerOf(egg);
+      FX.sparkle(c.x, c.y, 5);
+      egg.outerHTML = Sprite.eggHTML(taps >= 2 ? 1 : 0, 96 + taps * 6);
+      egg = node.querySelector('.egg-px');
+      egg.onclick = tap;
+      if (taps >= 3) {
+        FX.confetti(c.x, c.y, 44); FX.ring(c.x, c.y, '#d9b45f'); SFX.play('birth'); Shake.hit(6);
+        Game.addMeme(baby); Game.save();
+        node.innerHTML = `
+          <div style="width:112px">${Sprite.memeSVG(baby, { size: 112 })}</div>
+          <h3>${U.esc(baby.name)} <span class="gen">GEN ${baby.gen}</span></h3>
+          <div class="power-chip">${Icon.ico('bolt', 13)} POWER ${Genetics.power(baby)} · ${DATA.GENES.face.alleles[baby.pheno.face].label}</div>
+          <p style="font-size:12px;opacity:.8">${U.esc(Genetics.describe(baby))}</p>
+          <div class="trait-list" style="justify-content:center;margin:4px 0">${baby.traits.map(t => this.traitPill(t)).join('') || '<span style="opacity:.5;font-size:12px">no traits — a blank slate</span>'}</div>
+          <div class="ability-list" style="justify-content:center">${Genetics.abilities(baby).map(a => this.abilityPill(a)).join('')}</div>
+          ${inbred ? '<p style="color:var(--red);font-size:12px"><b>...it is a repost.</b></p>' : ''}
+          <p style="font-size:11px;opacity:.6">A baby — it grows into a fighter after its first battle.</p>
+          <button class="chunky-btn good">Welcome!</button>`;
+        this.bindPillTooltips(node);
+        node.querySelector('button').onclick = () => { Modal.hide(); this.refreshAllWindows(); };
+      }
+    };
+    egg.onclick = tap;
   },
 
   /* ============================================================

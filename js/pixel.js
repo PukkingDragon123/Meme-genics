@@ -17,7 +17,28 @@ const Pixel = {
     'k': '#26203a',
   },
 
-  // grid: array of equal-ish length strings, '.' or ' ' = transparent
+  // add a 1px black outline around every filled region (uniform style)
+  INK_RGB: [38, 32, 58],
+  outline(ctx, w, h) {
+    const img = ctx.getImageData(0, 0, w, h);
+    const d = img.data;
+    const filled = i => d[i * 4 + 3] > 40;
+    const edges = [];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        if (filled(i)) continue;
+        if ((x > 0 && filled(i - 1)) || (x < w - 1 && filled(i + 1)) ||
+            (y > 0 && filled(i - w)) || (y < h - 1 && filled(i + w))) edges.push(i);
+      }
+    }
+    const [r, g, b] = this.INK_RGB;
+    for (const i of edges) { d[i * 4] = r; d[i * 4 + 1] = g; d[i * 4 + 2] = b; d[i * 4 + 3] = 255; }
+    ctx.putImageData(img, 0, 0);
+  },
+
+  // grid: array of equal-ish length strings, '.' or ' ' = transparent.
+  // Rendered with a 1px transparent pad + a uniform black outline.
   urlFromGrid(grid, pal = {}) {
     const key = grid.join('|') + '§' + JSON.stringify(pal);
     if (this._cache.has(key)) return this._cache.get(key);
@@ -25,7 +46,7 @@ const Pixel = {
     let w = 0;
     for (const row of grid) w = Math.max(w, row.length);
     const cv = document.createElement('canvas');
-    cv.width = w; cv.height = h;
+    cv.width = w + 2; cv.height = h + 2;
     const ctx = cv.getContext('2d');
     const colors = { ...this.BASE_PAL, ...pal };
     for (let y = 0; y < h; y++) {
@@ -34,9 +55,10 @@ const Pixel = {
         const ch = row[x];
         if (ch === '.' || ch === ' ') continue;
         ctx.fillStyle = colors[ch] || '#ff00ff';
-        ctx.fillRect(x, y, 1, 1);
+        ctx.fillRect(x + 1, y + 1, 1, 1);
       }
     }
+    this.outline(ctx, cv.width, cv.height);
     const url = cv.toDataURL();
     this._cache.set(key, url);
     return url;
