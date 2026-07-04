@@ -639,6 +639,13 @@ const Desktop = {
   },
 
   doBreed(A, B) {
+    // capacity can fill between rendering the breeder and clicking FUSE
+    if (Game.state.memes.length >= Game.CAPACITY) {
+      SFX.play('error');
+      toast('🏠 Desktop is full — no room for a baby meme!');
+      this.refreshWindow('breeder');
+      return;
+    }
     const { baby, inbred } = Genetics.breed(A, B, Game.state.day);
     A.breedCd = 3; B.breedCd = 3;
     Game.state.stats.memesBred++;

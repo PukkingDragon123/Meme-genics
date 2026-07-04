@@ -494,13 +494,15 @@ const Combat = {
       if (path) await this.walkPath(u, path);
       u.moved = true;
       st.busy = false;
+      if (st.over) return;
+      if (u.hp <= 0) { this.setMode('idle'); this.nextTurn(); return; } // died on a hazard
       if (u.acted) this.maybeAutoEnd(u);
       else { this.autoSelectAbility(u); }
       this.renderUnitCard(u);
       return;
     }
 
-    if (st.mode === 'target' && cell.el.classList.contains('hl-attack') || st.mode === 'target' && cell.el.classList.contains('hl-heal')) {
+    if (st.mode === 'target' && (cell.el.classList.contains('hl-attack') || cell.el.classList.contains('hl-heal'))) {
       if (!cell.unit && !st.selAbility) return;
       st.busy = true;
       this.clearHighlights();
@@ -508,6 +510,7 @@ const Combat = {
       u.acted = true;
       st.busy = false;
       if (st.over) return;
+      if (u.hp <= 0) { this.setMode('idle'); this.nextTurn(); return; } // cursed self-bonk etc.
       this.renderUnitCard(u);
       this.maybeAutoEnd(u);
       return;
@@ -567,12 +570,25 @@ const Combat = {
     for (const c of this.state.cells.values()) {
       if (!c.unit || c.unit.hp <= 0) continue;
       const inRange = ab.line
-        ? this.inLine(u.cell, c) && this.dist(c, u.cell) <= ab.range
+        ? this.inLine(u.cell, c) && this.dist(c, u.cell) <= ab.range && this.lineClear(u.cell, c)
         : this.dist(c, u.cell) <= ab.range;
       if (!inRange) continue;
       if (ab.target === 'enemy' && !c.unit.isMeme) c.el.classList.add('hl-attack', 'hoverable');
       if (ab.target === 'ally' && c.unit.isMeme) c.el.classList.add('hl-heal', 'hoverable');
     }
+  },
+
+  // true if no blocked hex sits between a and b along their shared line
+  lineClear(a, b) {
+    const dir = this.dirTowards(a, b);
+    if (!dir) return false;
+    for (let k = 1; k <= this.dist(a, b); k++) {
+      const c = this.cell(a.q + dir[0] * k, a.r + dir[1] * k);
+      if (!c) return false;
+      if (c === b) return true;
+      if (c.blocked) return false;
+    }
+    return true;
   },
 
   inLine(a, b) {
@@ -701,11 +717,17 @@ const Combat = {
     // ---- hit each target ----
     let any = false;
     for (const c of targets) {
+      if (u.hp <= 0) break; // the caster died mid-ability (reflect, hazard...)
       const t = c.unit;
       if (!t || t.hp <= 0) continue;
-      if (ab.hitsEnemiesOnly && t.isMeme !== !u.isMeme && t !== u) { /* filtered below */ }
 
-      if (ab.heal) {
+      if (ab.target === 'ally' && !ab.heal) {
+        // pure buff (STONKS et al) — status only, on allies
+        if (t.isMeme !== u.isMeme) continue;
+        any = true;
+        if (ab.status) this.applyStatus(u, t, ab.status);
+        await U.wait(150);
+      } else if (ab.heal) {
         if (!t.isMeme && u.isMeme) continue;
         if (t.isMeme !== u.isMeme) continue;
         any = true;
@@ -1049,11 +1071,14 @@ const Combat = {
 
     const desiredRange = def.ai === 'ranged' ? this.bestRangedRange(u) : 1;
 
+    // self-centered AoEs (vbsod) have range 0 but reach out to their aoe radius
+    const castRange = ab => (ab.aoe && ab.range === 0) ? ab.aoe : ab.range;
+
     // if any usable ability can hit now, use it
     for (const abId of byPriority) {
       const ab = DATA.VIRUS_ABILITIES[abId];
       if (ab.summon) continue;
-      if (this.dist(u.cell, target.cell) <= ab.range) {
+      if (this.dist(u.cell, target.cell) <= castRange(ab)) {
         await this.virusCast(u, abId, target.cell);
         return;
       }
@@ -1067,7 +1092,7 @@ const Combat = {
     for (const abId of byPriority) {
       const ab = DATA.VIRUS_ABILITIES[abId];
       if (ab.summon) continue;
-      if (this.dist(u.cell, target.cell) <= ab.range) {
+      if (this.dist(u.cell, target.cell) <= castRange(ab)) {
         await this.virusCast(u, abId, target.cell);
         return;
       }
@@ -1160,9 +1185,10 @@ const Combat = {
     }
 
     for (const t of targets) {
+      if (u.hp <= 0) break; // caster died mid-cast (UNO Reverse reflect)
       await this.attack(u, t, { power: ab.power, stat: 'atk' });
       if (t.hp > 0 && ab.status) this.applyStatus(u, t, ab.status);
-      if (t.hp > 0 && ab.pull) await this.pull(t, u.cell, ab.pull);
+      if (t.hp > 0 && ab.pull && u.cell) await this.pull(t, u.cell, ab.pull);
       if (ab.steal && t.hp > 0) {
         const stolen = Math.min(Game.state.coins, ab.steal);
         if (stolen > 0) {
@@ -1279,6 +1305,7 @@ const Combat = {
             u.acted = true;
             this.state.busy = false;
             if (this.state.over) return;
+            if (u.hp <= 0) { this.setMode('idle'); this.nextTurn(); return; }
             this.renderUnitCard(u);
             this.maybeAutoEnd(u);
           } else {
@@ -1311,6 +1338,12 @@ const Combat = {
   openBag() {
     const st = this.state;
     if (st.over) return;
+    if (st.busy || !st.active || !st.active.isMeme || st.active.isClone
+        || st.active.statuses.some(s => s.id === 'confuse')) {
+      SFX.play('error');
+      toast('🎒 Wait for one of your memes\' turns!');
+      return;
+    }
     const usable = Object.keys(Game.state.inventory).filter(id => DATA.ITEMS[id].battle);
     const node = U.el('div');
     if (!usable.length) node.innerHTML = '<p>No battle consumables! MemeBay sells pizza, copium and more.</p>';

@@ -36,6 +36,10 @@ const Game = {
   },
 
   save() {
+    // never persist mid-battle: battle mutations (XP, kills, stolen coins, used
+    // items) only become canon once Combat.finish() has applied the outcome —
+    // otherwise a mid-fight refresh would keep the gains but skip permadeath
+    if (typeof Combat !== 'undefined' && Combat.state && !Combat.state.over) return;
     try { localStorage.setItem(this.SAVE_KEY, JSON.stringify(this.state)); }
     catch (e) { /* storage unavailable — session play only */ }
   },
@@ -140,6 +144,7 @@ const Game = {
 
     Desktop.updateTray();
     Desktop.refreshWalkers();
+    Desktop.refreshAllWindows();
 
     // announcements
     for (const m of matured) {
@@ -149,6 +154,7 @@ const Game = {
     for (const m of obituaries) {
       SFX.play('sadtrombone');
       Modal.show({
+        defer: true,
         title: '💀 Press F',
         bodyHTML: `<div style="text-align:center">
           <div style="width:90px;margin:0 auto">${Sprite.tombSVG()}</div>
@@ -181,6 +187,7 @@ const Game = {
       // a wandering meme wants to move in
       const wanderer = Genetics.newMeme({ bornDay: s.day });
       Modal.show({
+        defer: true,
         title: '📦 Special Delivery!',
         bodyHTML: `<div style="text-align:center">
           <div style="width:110px;margin:0 auto">${Sprite.memeSVG(wanderer)}</div>
@@ -215,6 +222,7 @@ const Game = {
       this.state.memes.push(rescue);
       Desktop.spawnWalker(rescue);
       Modal.show({
+        defer: true,
         title: '🗑️ A hero emerges',
         bodyHTML: `<div style="text-align:center">
           <div style="width:110px;margin:0 auto">${Sprite.memeSVG(rescue)}</div>

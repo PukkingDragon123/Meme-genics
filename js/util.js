@@ -111,8 +111,14 @@ function toast(html, ms = 3200) {
    ============================================================ */
 const Modal = {
   layer: null,
+  _queue: [],
   init() { this.layer = document.getElementById('modal-layer'); },
   show(opts) {
+    // opts.defer: if a modal is already open, wait in line instead of replacing it
+    if (opts.defer && !this.layer.classList.contains('hidden')) {
+      this._queue.push(opts);
+      return null;
+    }
     this.layer.innerHTML = '';
     this.layer.classList.remove('hidden');
     const m = U.el('div', 'modal');
@@ -138,6 +144,8 @@ const Modal = {
   hide() {
     this.layer.classList.add('hidden');
     this.layer.innerHTML = '';
+    const next = this._queue.shift();
+    if (next) setTimeout(() => Modal.show(next), 180);
   }
 };
 

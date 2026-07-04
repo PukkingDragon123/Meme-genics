@@ -38,7 +38,9 @@ button { font-family: inherit; cursor: pointer; }
    DESKTOP
    ============================================================ */
 
-#desktop { position: absolute; inset: 0; overflow: hidden; }
+/* z-index:1 makes the desktop its own stacking context, so window z-indexes
+   (an ever-growing counter) can never climb above the battle overlay */
+#desktop { position: absolute; inset: 0; overflow: hidden; z-index: 1; }
 
 #wallpaper {
   position: absolute; inset: -60px;
@@ -333,7 +335,7 @@ button { font-family: inherit; cursor: pointer; }
 .age-meter .stat-bar { height: 10px; }
 .age-meter .sb-age > div { background: linear-gradient(90deg,#05ffa1,#fffb96,#ff9e3d,#ff4d6d); }
 
-.equip-slots { display: flex; gap: 8px; margin-top: 4px; }
+.equip-slots { display: flex; gap: 8px; margin-top: 4px; margin-bottom: 16px; }
 .equip-slot {
   width: 44px; height: 44px; border: 3px dashed rgba(43,27,61,.4); border-radius: 12px;
   display: flex; align-items: center; justify-content: center; font-size: 22px;

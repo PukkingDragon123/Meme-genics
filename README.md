@@ -9,6 +9,10 @@ cats in a house, you manage **memes living on a fake desktop OS**, and instead o
 No build step, no dependencies, no assets — everything (sprites, sounds, particles) is generated
 in the browser. Just open `index.html`.
 
+![Desktop — memes living on your fake OS](screenshots/desktop.png)
+
+![Battle — hex tactics vs viruses in System32](screenshots/battle.png)
+
 ## ▶️ How to play
 
 ```bash
