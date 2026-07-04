@@ -643,6 +643,97 @@ const VIRUS_ART = {
 };
 
 /* ============================================================
+   ABILITY ICONS (batch) — colored silhouettes; the renderer's
+   auto-outline gives each a uniform black border.
+   ============================================================ */
+Object.assign(ICONS, {
+  hammer2: { p: { s: '#9aa2ab', S: '#5f6d70', h: '#a06a3c' }, g: [
+    '...ssss...','..sSssSs..','..ssssss..','...ssss...','....hh....','....hh....','....hh....','....hh....','....hh....','..........',
+  ]},
+  fireball: { p: { y: '#e6c84d', o: '#d98a3a', r: '#e0655e', R: '#8f3228' }, g: [
+    '....y.....','...yoy....','..orRro...','.orRRRro..','.rRRyRRr..','.rRRRRRr..','..rRRRr...','...rrr....','..r.r.r...','..........',
+  ]},
+  iceshard: { p: { b: '#4a9fd4', B: '#2f6a94', w: '#e6f4ff' }, g: [
+    '....b.....','...bBb....','..bBBBb...','.bBwwBBb..','.bBBBBBb..','..bBBBb...','...bBb....','....b.....','..........','..........',
+  ]},
+  bolt2: { p: { y: '#e6c84d', o: '#d98a3a' }, g: [
+    '....yy....','...yy.....','..yy......','.yyyyy....','...yyo....','..yy......','.yy.......','yy........','..........','..........',
+  ]},
+  meteor: { p: { S: '#5f6d70', s: '#9aa2ab', o: '#d98a3a', y: '#e6c84d' }, g: [
+    '........oy','.......oo.','......yo..','..SSS.o...','.SssSSo...','.SssssS...','.SSssSS...','..SSSS....','...SS.....','..........',
+  ]},
+  dagger: { p: { s: '#c8d0dd', S: '#5f6d70', h: '#a06a3c' }, g: [
+    '.......ss.','......ss..','.....ss...','....sS....','...ss.....','..hsh.....','.hhh......','.hh.......','.h........','..........',
+  ]},
+  crossblade: { p: { s: '#c8d0dd', S: '#5f6d70' }, g: [
+    's........s','.s......s.','..s....s..','...s..s...','....ss....','...s..s...','..s....s..','.s......s.','s........s','..........',
+  ]},
+  boot2: { p: { h: '#a06a3c', S: '#5f6d70' }, g: [
+    '..........','..hh......','..hh......','..hh......','..hhhhh...','..hhhhhh..','..hhhhhh..','.SSSSSSSS.','.SSSSSSSS.','..........',
+  ]},
+  fang: { p: { w: '#f2f4f4' }, g: [
+    '.wwwwww...','.wwwwww...','.wwwwww...','..wwww....','..wwww....','...ww.....','...ww.....','....w.....','..........','..........',
+  ]},
+  laser2: { p: { r: '#e0655e', R: '#8f3228' }, g: [
+    '..........','..r.......','.rRr......','rrrrrrrrrr','.rRr......','..r.......','..........','..........','..........','..........',
+  ]},
+  halo2: { p: { y: '#d9b45f', Y: '#e6c84d' }, g: [
+    '..yyyy....','.yYYYYy...','yY....Yy..','yY....Yy..','yY....Yy..','.yYYYYy...','..yyyy....','..........','..........','..........',
+  ]},
+  shout: { p: { w: '#f2f4f4', k: '#26203a', s: '#9aa2ab' }, g: [
+    '..kk......','.kwwk..s..','kwwwwk.s.s','kwwwwk..s.','kwwwwk.s.s','.kwwk..s..','..kk......','..........','..........','..........',
+  ]},
+  skullmagic: { p: { p: '#8676a4', P: '#5f4f7a', k: '#26203a' }, g: [
+    '..pppp....','.pPPPPp...','pPpppPPp..','pPkPPkPp..','pPPPPPPp..','pPpPPpPp..','.pPPPPp...','..p..p....','..........','..........',
+  ]},
+  shield2: { p: { b: '#4a9fd4', B: '#2f6a94' }, g: [
+    '.bbbbbbb..','.bBBBBBb..','.bBBBBBb..','.bBBBBBb..','.bBBBBBb..','..bBBBb...','...bBb....','....b.....','..........','..........',
+  ]},
+  lips: { p: { p: '#e070ac', R: '#a83a5a' }, g: [
+    '..........','.pp....pp.','pRRppppRRp','pRRRRRRRRp','.pRRRRRRp.','..pRRRRp..','...pppp...','..........','..........','..........',
+  ]},
+  fist2: { p: { f: '#f2b988', d: '#d99559' }, g: [
+    '..........','.ffff.....','ffffff....','fdffdf....','ffffff....','fffffff...','ffffff....','.fffff....','..........','..........',
+  ]},
+  scope: { p: { k: '#26203a', r: '#e0655e' }, g: [
+    '....k.....','..kkkkk...','.k.rrr.k..','k.r...r.k.','k.r.k.r.k.','k.r...r.k.','.k.rrr.k..','..kkkkk...','....k.....','..........',
+  ]},
+  snowflake: { p: { b: '#4a9fd4', w: '#e6f4ff' }, g: [
+    '....b.....','..b.b.b...','...bwb....','bbbwwwbbb.','...bwb....','..b.b.b...','....b.....','..........','..........','..........',
+  ]},
+  flames: { p: { r: '#e0655e', o: '#d98a3a', Y: '#e6c84d' }, g: [
+    '..r.r.r...','.rroorr...','roooooor..','roYYYYor..','roYYYYor..','.rooooor..','..rrrrr...','..........','..........','..........',
+  ]},
+  cloud2: { p: { g: '#57b18d', G: '#3a7d5f' }, g: [
+    '...ggg....','..ggggg...','.ggGgggg..','gggggggGg.','.gGgggGg..','..g.g.g...','.g.g.g.g..','..........','..........','..........',
+  ]},
+  plus2: { p: { g: '#57b18d', G: '#3a7d5f' }, g: [
+    '...gg.....','...gg.....','...gg.....','gggggggg..','ggggGggg..','...gg.....','...gg.....','...gg.....','..........','..........',
+  ]},
+  flag: { p: { r: '#e0655e', h: '#a06a3c' }, g: [
+    '.hrrrrrr..','.hrrrrr...','.hrrrr....','.hrrrrr...','.hrrrrrr..','.h........','.h........','.h........','.hh.......','..........',
+  ]},
+  wall: { p: { s: '#9aa2ab', S: '#5f6d70' }, g: [
+    'ssssssss..','sSsSsSsS..','ssssssss..','SsSsSsSs..','ssssssss..','sSsSsSsS..','ssssssss..','SsSsSsSs..','..........','..........',
+  ]},
+  star2: { p: { y: '#d9b45f', Y: '#e6c84d' }, g: [
+    '....y.....','....y.....','...yYy....','yyyYYYyyy.','.yYYYYYy..','..yYYYy...','..yY.Yy...','.yy...yy..','..........','..........',
+  ]},
+  burst: { p: { y: '#d9b45f', Y: '#e6c84d', w: '#f2f4f4' }, g: [
+    '..y.y.y...','y.yYYYy.y.','.yYYYYYy..','yYYwwwYYy.','yYYwwwYYy.','.yYYYYYy..','y.yYYYy.y.','..y.y.y...','..........','..........',
+  ]},
+  quake: { p: { s: '#9aa2ab', S: '#5f6d70', o: '#d98a3a' }, g: [
+    '...o..o...','..o.oo.o..','..........','ssssssss..','sSsSsSsS..','ss.sss.s..','s.sSs.sS..','ss..sss...','sSs..sSs..','..........',
+  ]},
+  vampfang: { p: { w: '#f2f4f4', r: '#e0655e' }, g: [
+    '.wwww.....','.wwww.....','.wwww.....','..ww......','..ww......','...w......','...r......','..rr......','...r......','..........',
+  ]},
+  megafist: { p: { f: '#f2b988', d: '#d99559', y: '#d9b45f' }, g: [
+    'y....y....','.y.ffff...','..ffffff..','y.fdffdf..','..ffffff.y','..fffffff.','..ffffff..','y.fffff.y.','.y......y.','..........',
+  ]},
+});
+
+/* ============================================================
    FULL-BODY MEME SPRITES (brainrot types) — the `face` gene
    with full:true draws one of these instead of the generic body.
    ============================================================ */

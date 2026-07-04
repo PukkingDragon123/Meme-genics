@@ -50,13 +50,11 @@ const Genetics = {
         ? opts.genome[g].slice()
         : [this.randomAllele(g, U.chance(0.06)), this.randomAllele(g, U.chance(0.06))];
     }
-    const spice = opts.spice || [U.pick(DATA.LEARNABLE), U.chance(0.5) ? U.pick(DATA.LEARNABLE) : null];
-
     const meme = {
       id: U.uid('meme'),
       name: opts.name || this.randomName(),
       gen: opts.gen || 1,
-      genome, spice,
+      genome,
       pheno: null,
       base: opts.base || {
         hp: U.randInt(24, 34), atk: U.randInt(5, 8), int: U.randInt(4, 8),
@@ -75,8 +73,27 @@ const Genetics = {
       kills: 0, battles: 0,
     };
     meme.pheno = this.computePhenotype(genome);
+    // ability kit: this type's signature + a random extra (or inherited set)
+    if (opts.learned) {
+      meme.learned = [...new Set(opts.learned)].slice(0, this.MAX_ABILITIES);
+    } else {
+      const kit = new Set();
+      const sig = DATA.GENES.face.alleles[meme.pheno.face].ability;
+      if (sig) kit.add(sig);
+      while (kit.size < 2) kit.add(U.pick(DATA.LEARNABLE));
+      meme.learned = [...kit];
+    }
     meme.hpMax = this.effStats(meme).hp;
     return meme;
+  },
+
+  MAX_ABILITIES: 6,
+  learnAbility(meme) {
+    const pool = DATA.LEARNABLE.filter(a => !meme.learned.includes(a));
+    if (!pool.length || meme.learned.length >= this.MAX_ABILITIES) return null;
+    const id = U.pick(pool);
+    meme.learned.push(id);
+    return id;
   },
 
   starterDoge() {
@@ -86,7 +103,7 @@ const Genetics = {
         body: ['round', 'bean'], hue: ['gold', 'gold'], pattern: ['plain', 'belly'],
         face: ['doge', 'doge'], eyes: ['normal', 'derp'], mouth: ['smile', 'tongue'], extra: ['none', 'blush'],
       },
-      spice: ['yeet', null],
+      learned: ['yeet', 'fireball'],
       base: { hp: 30, atk: 7, int: 5, spd: 6, lck: 7 },
       traits: ['dank'],
     });
@@ -99,7 +116,7 @@ const Genetics = {
         body: ['blob', 'round'], hue: ['green', 'green'], pattern: ['belly', 'plain'],
         face: ['frog', 'frog'], eyes: ['sparkly', 'normal'], mouth: ['smile', 'open'], extra: ['none', 'none'],
       },
-      spice: ['touchgrass', null],
+      learned: ['touchgrass', 'icespike'],
       base: { hp: 28, atk: 5, int: 8, spd: 5, lck: 6 },
       traits: ['wholesome'],
     });
@@ -126,12 +143,11 @@ const Genetics = {
       genome[g] = [a, b];
     }
 
-    // ability genes: one slot from each parent, may mutate
-    const momSpice = U.pick(mom.spice.filter(Boolean).length ? mom.spice.filter(Boolean) : [null]);
-    const dadSpice = U.pick(dad.spice.filter(Boolean).length ? dad.spice.filter(Boolean) : [null]);
-    let spice = [momSpice, dadSpice];
-    spice = spice.map(s => U.chance(this.SPICE_MUTATION) ? U.pick(DATA.LEARNABLE) : s);
-    if (spice[0] && spice[0] === spice[1]) spice[1] = U.chance(0.5) ? U.pick(DATA.LEARNABLE) : null;
+    // abilities: inherit a couple from the parents' pools, may mutate a fresh one
+    const parentPool = [...new Set([...(mom.learned || []), ...(dad.learned || [])])];
+    const learned = new Set();
+    for (const a of U.shuffle(parentPool)) { if (learned.size >= 2) break; learned.add(a); }
+    if (U.chance(this.SPICE_MUTATION) || learned.size === 0) learned.add(U.pick(DATA.LEARNABLE));
 
     // stats: blend + drift (slight upward pressure = generational progress)
     const base = {};
@@ -153,7 +169,7 @@ const Genetics = {
     const lineage = [...new Set([mom.id, dad.id, ...(mom.lineage || []), ...(dad.lineage || [])])].slice(0, 24);
 
     const baby = this.newMeme({
-      genome, spice, base, traits,
+      genome, learned: [...learned], base, traits,
       gen: Math.max(mom.gen, dad.gen) + 1,
       matured: false,
       parents: [mom.id, dad.id],
@@ -198,10 +214,8 @@ const Genetics = {
 
   abilities(meme) {
     const list = ['bonk'];
-    const sig = DATA.GENES.face.alleles[meme.pheno.face].ability;
-    if (sig) list.push(sig);
-    for (const sp of meme.spice) if (sp && !list.includes(sp)) list.push(sp);
-    return list.slice(0, 4);
+    for (const a of (meme.learned || [])) if (a !== 'bonk' && DATA.ABILITIES[a] && !list.includes(a)) list.push(a);
+    return list;
   },
 
   // combat identity from the face gene
@@ -231,10 +245,13 @@ const Genetics = {
 
   xpToLevel(level) { return Math.round(18 * Math.pow(level, 1.4)); },
 
+  // grantXp returns { ups, learned: [ids] } — a new ability may be learned each level
   grantXp(meme, amount) {
     if (meme.traits.includes('maincharacter')) amount = Math.round(amount * 1.3);
     meme.xp += amount;
     let ups = 0;
+    const learned = [];
+    if (!meme.learned) meme.learned = [];
     while (meme.level < this.MAX_LEVEL && meme.xp >= this.xpToLevel(meme.level)) {
       meme.xp -= this.xpToLevel(meme.level);
       meme.level++;
@@ -245,8 +262,15 @@ const Genetics = {
         { v: 'spd', w: meme.base.spd * 0.6 }, { v: 'lck', w: meme.base.lck * 0.6 },
       ]);
       meme.base[stat] += 1;
+      // learn a new ability roughly every other level
+      if (meme.level % 2 === 0 || ups === 1) {
+        const id = this.learnAbility(meme);
+        if (id) learned.push(id);
+      }
     }
     meme.hpMax = this.effStats(meme).hp;
+    meme._lastUps = ups;
+    meme._lastLearned = learned;
     return ups;
   },
 

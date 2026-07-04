@@ -62,12 +62,11 @@ const Combat = {
 
     const mkMeme = (meme, i) => {
       const s = Genetics.effStats(meme);
-      const sp = Genetics.special(meme);
       meme.battles++;
       return {
         id: U.uid('u'), isMeme: true, meme, side: 'L',
         name: meme.name, stats: s, hp: s.hp, hpMax: s.hp,
-        statuses: [], special: sp, specialCd: 1, mag: !!sp.mag,
+        statuses: [], abilities: Genetics.abilities(meme), cds: {},
         el: null, body: null, x: 0, homeX: 0, back: false,
       };
     };
@@ -79,7 +78,7 @@ const Combat = {
         name: def.name,
         stats: { atk, int: atk, spd: def.spd, lck: 3, crit: 4, resist: def.boss ? 30 : 0 },
         hp: Math.round(def.hp * scale), hpMax: Math.round(def.hp * scale),
-        statuses: [], special: null, specialCd: 99, mag: false,
+        statuses: [], abilities: ['bonk'], cds: {},
         el: null, body: null, x: 0, homeX: 0, back: false,
       };
     };
@@ -127,7 +126,7 @@ const Combat = {
     const pw = u.isMeme ? DATA.power(u.stats, u.meme.level) : DATA.virusPower(u.def, this.state.scale);
     return `<h4>${U.esc(u.name)}</h4>
       <div class="tt-sub">${Icon.ico('heart', 12)}${Math.max(0, u.hp)}/${u.hpMax} · ${Icon.ico('fist', 12)}${u.stats.atk} · ${Icon.ico('bolt', 12)}${u.stats.spd}</div>
-      <div class="tt-sub">Power ${pw}${u.isMeme ? ' · ' + u.special.name : ''}</div>`;
+      <div class="tt-sub">Power ${pw}${u.isMeme ? ' · ' + (u.abilities.length) + ' moves' : ''}</div>`;
   },
 
   /* ============================================================
@@ -222,12 +221,8 @@ const Combat = {
     const target = this.pickTarget(u);
     if (!target) { st.busy = false; return; }
 
-    if (u.isMeme) {
-      if (u.specialCd <= 0) await this.doSpecial(u, target);
-      else { u.specialCd--; await this.doBasic(u, target); }
-    } else {
-      await this.enemyTurn(u, target);
-    }
+    if (u.isMeme) await this.memeTurn(u, target);
+    else await this.enemyTurn(u, target);
     // decay statuses that live per-turn
     for (const s of u.statuses.slice()) { s.turns--; if (s.turns <= 0) this.removeStatus(u, s.id); }
     this.renderStatus(u);
@@ -248,109 +243,145 @@ const Combat = {
   },
 
   /* ============================================================
-     PLAYER MEME — basic attack (Timing Strike)
+     PLAYER MEME — pick a learned ability & cast it (anime style)
      ============================================================ */
-  async doBasic(u, target) {
-    this.focusUnit(u, 1.55);
-    await U.wait(360);
-    const grade = await this.qteBar({ label: 'STRIKE!', sub: 'tap in the zone', time: 1900, sweet: 20, speed: 118 });
-    const mult = this.GRADE_MULT[grade];
-    const crit = grade === 'perfect' || U.chance((u.stats.crit || 4) / 100);
-
-    this.focusMid(u, target, 1.4);
-    await this.dash(u, target);
-    const base = u.stats.atk;
-    let dmg = base * mult * U.rand(0.92, 1.08) * this.outMult(u);
-    if (crit) dmg *= 1.7;
-    dmg = Math.max(1, Math.round(dmg));
-    this.impact(target, dmg, { crit, grade });
-    await U.wait(240);
-    await this.dashBack(u);
+  async memeTurn(u, target) {
+    for (const k of Object.keys(u.cds)) if (u.cds[k] > 0) u.cds[k]--;
+    const ready = u.abilities.filter(a => a !== 'bonk' && DATA.ABILITIES[a] && !(u.cds[a] > 0));
+    const kindOf = a => DATA.ABILITIES[a].kind;
+    const lowAlly = this.livingMemes().some(m => m.hp / m.hpMax < 0.45);
+    const heals = ready.filter(a => kindOf(a) === 'heal');
+    const offense = ready.filter(a => !['heal', 'shield', 'buff', 'debuff'].includes(kindOf(a)));
+    let abId = 'bonk';
+    if (lowAlly && heals.length) abId = U.pick(heals);
+    else if (offense.length) abId = U.pick(offense);
+    else if (ready.length) abId = U.pick(ready);
+    await this.castAbility(u, abId, target);
   },
 
-  /* ============================================================
-     PLAYER MEME — special (kind-dependent + QTE)
-     ============================================================ */
-  async doSpecial(u, target) {
-    u.specialCd = u.special.cd;
-    const sp = u.special;
-    this.focusUnit(u, 1.5);
-    bigBanner(sp.name, 1000);
-    SFX.play('zap');
-    this.flash('rgba(234,192,88,.35)');
-    await U.wait(500);
+  async castAbility(u, abId, target) {
+    const ab = DATA.ABILITIES[abId];
+    u.cds[abId] = ab.cd + 1;
+    const base = ab.mag ? u.stats.int : u.stats.atk;
+    const melee = ['strike', 'nuke', 'multi', 'execute', 'lifesteal', 'dot'].includes(ab.kind) && ab.vfx !== 'meteor' && ab.vfx !== 'bullet' && ab.vfx !== 'fireball';
+    const support = ['heal', 'buff', 'shield'].includes(ab.kind);
 
-    const base = u.mag ? u.stats.int : u.stats.atk;
+    if (abId !== 'bonk') await this.animeCutIn(u, ab);
+    else { this.focusUnit(u, 1.5); await U.wait(280); }
 
-    if (sp.kind === 'multi') {
-      const ratio = await this.qteMash({ label: sp.name + '!', sub: 'MASH!', time: 1500, target: 12 });
-      const hits = 2 + Math.round(ratio * 3);
-      this.focusMid(u, target, 1.4);
-      await this.dash(u, target);
-      for (let i = 0; i < hits; i++) {
-        if (target.hp <= 0) { const nt = this.pickTarget(u); if (!nt) break; target = nt; }
-        const dmg = Math.max(1, Math.round(base * 0.7 * U.rand(0.9, 1.1) * this.outMult(u)));
-        this.impact(target, dmg, { crit: i === hits - 1, small: true });
-        await U.wait(150);
-      }
-      await this.dashBack(u);
+    // QTE — skill layer
+    let mult = 1, hits = 3, perfect = false;
+    if (ab.qte === 'mash') { const r = await this.qteMash({ label: ab.name + '!', sub: 'MASH!', time: 1500, target: 12 }); mult = 0.9 + r * 0.7; hits = 2 + Math.round(r * 3); }
+    else if (ab.qte === 'timing') { const g = await this.qteBar({ label: ab.name + '!', sub: ab.kind === 'heal' ? 'time the heal' : 'nail the timing', time: 1850, sweet: 18, speed: 122 }); mult = this.GRADE_MULT[g]; perfect = g === 'perfect'; }
+    const crit = perfect || U.chance((u.stats.crit || 4) / 100);
 
-    } else if (sp.kind === 'nuke') {
-      const grade = await this.qteBar({ label: sp.name + '!', sub: 'perfect = crit', time: 1900, sweet: 16, speed: 128 });
-      const mult = this.GRADE_MULT[grade];
-      this.focusMid(u, target, 1.5);
-      await this.dash(u, target);
-      let dmg = Math.max(1, Math.round(base * 2.4 * mult * this.outMult(u)));
-      const crit = grade === 'perfect';
-      if (crit) dmg = Math.round(dmg * 1.5);
-      this.flash();
-      Shake.hit(16);
-      this.impact(target, dmg, { crit: true, big: true });
-      await U.wait(300);
-      await this.dashBack(u);
+    const foes = this.livingFoes();
+    let targets;
+    if (ab.kind === 'aoe') targets = foes;
+    else if (support) targets = this.livingMemes();
+    else targets = [(target && target.hp > 0) ? target : foes[0]].filter(Boolean);
+    if (!support && !targets.length) { await U.wait(120); return; }
 
-    } else if (sp.kind === 'aoe') {
-      const grade = await this.qteBar({ label: sp.name + '!', sub: 'hit all foes', time: 1900, sweet: 18, speed: 120 });
-      const mult = this.GRADE_MULT[grade];
-      this.camWide();
-      this.speedlines(true);
-      await U.wait(150);
-      Shake.hit(14);
-      this.flash('rgba(74,159,212,.4)');
-      for (const t of this.livingFoes()) {
-        const dmg = Math.max(1, Math.round(base * 1.15 * mult * this.outMult(u)));
-        this.impact(t, dmg, { small: true });
-        await U.wait(90);
-      }
-      this.speedlines(false);
+    // camera + approach
+    if (melee && targets[0]) { this.focusMid(u, targets[0], 1.4); await this.dash(u, targets[0]); }
+    else { this.camWide(); this.speedlines(true); await U.wait(120); }
 
-    } else if (sp.kind === 'heal') {
-      const grade = await this.qteBar({ label: sp.name + '!', sub: 'time the heal', time: 1900, sweet: 20, speed: 110 });
-      const mult = this.GRADE_MULT[grade];
+    // unique VFX
+    this.playVFX(ab.vfx, u, ab.kind === 'aoe' ? foes : (support ? this.livingMemes() : targets), ab.color);
+    await U.wait(130);
+
+    const roll = () => Math.max(1, Math.round(base * ab.power * mult * U.rand(0.92, 1.08) * this.outMult(u)));
+
+    if (ab.kind === 'heal') {
       const allies = this.livingMemes().sort((a, b) => a.hp / a.hpMax - b.hp / b.hpMax);
-      const amt = Math.max(1, Math.round(base * 1.7 * mult));
-      for (const a of allies.slice(0, 3)) this.healUnit(a, Math.round(amt * (a === allies[0] ? 1 : 0.5)));
-      SFX.play('heal');
-
-    } else if (sp.kind === 'buff') {
-      await this.qteBar({ label: sp.name + '!', sub: 'pump it up', time: 1500, sweet: 24, speed: 100 });
-      for (const a of this.livingMemes()) this.addStatus(a, 'atkUp', 2);
-      this.flash('rgba(87,177,141,.35)');
-      SFX.play('levelup');
-
-    } else if (sp.kind === 'debuff') {
-      await this.qteBar({ label: sp.name + '!', sub: 'weaken them', time: 1500, sweet: 24, speed: 100 });
-      for (const t of this.livingFoes()) this.addStatus(t, 'atkDown', 2);
-      this.flash('rgba(138,118,168,.35)');
-      SFX.play('stun');
-
-    } else if (sp.kind === 'shield') {
-      await this.qteBar({ label: sp.name + '!', sub: 'raise guard', time: 1500, sweet: 24, speed: 100 });
-      for (const a of this.livingMemes()) this.addStatus(a, 'shield', 2, Math.round(base * 1.4));
-      this.flash('rgba(74,159,212,.35)');
-      SFX.play('heal');
+      const amt = Math.max(1, Math.round(base * ab.power * mult));
+      allies.slice(0, 3).forEach((a, i) => this.healUnit(a, Math.round(amt * (i ? 0.5 : 1))));
+    } else if (ab.kind === 'buff') {
+      this.livingMemes().forEach(a => this.addStatus(a, 'atkUp', 2)); SFX.play('levelup');
+    } else if (ab.kind === 'shield') {
+      const amt = Math.round(base * 1.5 + 6); this.livingMemes().forEach(a => this.addStatus(a, 'shield', 2, amt)); SFX.play('heal');
+    } else if (ab.kind === 'debuff') {
+      foes.forEach(t => this.addStatus(t, 'atkDown', 2)); SFX.play('stun');
+    } else if (ab.kind === 'multi') {
+      for (let i = 0; i < hits; i++) {
+        let t = targets[0]; if (!t || t.hp <= 0) { t = this.livingFoes()[0]; if (!t) break; }
+        const d = Math.max(1, Math.round(base * ab.power * U.rand(0.9, 1.1) * this.outMult(u)));
+        this.impact(t, d, { small: true, crit: i === hits - 1 && crit });
+        await U.wait(120);
+      }
+    } else if (ab.kind === 'aoe') {
+      this.flash(this.rgba(ab.color, .28)); Shake.hit(12);
+      for (const t of foes) { if (t.hp <= 0) continue; this.impact(t, roll(), { small: true }); await U.wait(70); }
+    } else {
+      const t = targets[0];
+      if (t) {
+        let dmg = roll();
+        if (ab.kind === 'nuke') { if (crit) dmg = Math.round(dmg * 1.5); this.flash(); Shake.hit(16); this.impact(t, dmg, { big: true }); }
+        else if (ab.kind === 'execute') { if (t.hp / t.hpMax <= 0.35) dmg *= 2; if (crit) dmg = Math.round(dmg * 1.7); this.impact(t, dmg, { crit }); }
+        else if (ab.kind === 'lifesteal') { if (crit) dmg = Math.round(dmg * 1.7); this.impact(t, dmg, { crit }); if (u.hp > 0) this.healUnit(u, Math.round(dmg * 0.5)); }
+        else if (ab.kind === 'dot') { if (crit) dmg = Math.round(dmg * 1.7); this.impact(t, dmg, { crit }); if (t.hp > 0) this.addStatus(t, ab.vfx === 'ice' ? 'slow' : 'burn', 2); }
+        else { if (crit) dmg = Math.round(dmg * 1.7); this.impact(t, dmg, { crit }); }
+      }
     }
-    await U.wait(200);
+    this.speedlines(false);
+    await U.wait(220);
+    if (melee) await this.dashBack(u);
+  },
+
+  // colored flash helper
+  rgba(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  },
+
+  // anime-style ability cut-in (portrait + name band + camera punch)
+  async animeCutIn(u, ab) {
+    this.focusUnit(u, 1.7);
+    document.getElementById('battle').classList.add('cine');
+    const layer = document.getElementById('qte-layer');
+    const cut = U.el('div', 'anime-cut');
+    cut.style.setProperty('--acol', ab.color);
+    cut.innerHTML = `<div class="ac-face">${Sprite.memeSVG(u.meme, { equip: false, size: 56 })}</div>
+      <div class="ac-name">${Icon.ico(ab.ico, 22)} <span>${ab.name}</span></div>`;
+    layer.appendChild(cut);
+    SFX.play('zap'); this.flash('rgba(255,255,255,.22)'); Shake.hit(6);
+    await U.wait(620);
+    cut.remove();
+    document.getElementById('battle').classList.remove('cine');
+  },
+
+  // ============================================================
+  //  VFX DISPATCHER — each ability's unique on-screen effect
+  // ============================================================
+  playVFX(name, caster, tgts, color) {
+    const cc = caster && caster.el ? centerOf(caster.el) : { x: 0, y: 0 };
+    const pts = (tgts || []).filter(t => t.el).map(t => centerOf(t.el));
+    const each = fn => pts.forEach(fn);
+    switch (name) {
+      case 'slash': each(p => { FX.slash(p.x, p.y, color); FX.hit(p.x, p.y); }); break;
+      case 'multislash': each(p => { for (let i = 0; i < 4; i++) setTimeout(() => FX.slash(p.x, p.y, color), i * 70); }); break;
+      case 'punch': each(p => { FX.boom(p.x, p.y); FX.ring(p.x, p.y, color); }); Shake.hit(8); break;
+      case 'fire': each(p => { FX.spawn(p.x, p.y, { count: 14, colors: ['#e0655e', '#d98a3a', '#e6c84d'], up: 2, maxSpd: 5, sizeMin: 3, sizeMax: 7, lifeMax: 34 }); FX.boom(p.x, p.y); }); break;
+      case 'fireball': each(p => FX.projectile(cc.x, cc.y, p.x, p.y, '#e0655e', () => { FX.boom(p.x, p.y); FX.spawn(p.x, p.y, { count: 12, colors: ['#e0655e', '#d98a3a'], maxSpd: 5, lifeMax: 30 }); })); break;
+      case 'ice': each(p => { FX.spawn(p.x, p.y, { count: 12, colors: ['#4a9fd4', '#a6e0ee', '#e6f4ff'], maxSpd: 4, sizeMin: 3, sizeMax: 6, lifeMax: 34 }); FX.ring(p.x, p.y, '#4a9fd4'); }); break;
+      case 'lightning': each(p => { FX.bolt(p.x, p.y, color); }); this.flash('rgba(217,180,95,.28)'); break;
+      case 'meteor': each(p => FX.projectile(p.x, -40, p.x, p.y, '#d98a3a', () => { FX.boom(p.x, p.y); FX.ring(p.x, p.y, color); Shake.hit(12); this.flash(); })); break;
+      case 'beam': { const fx = caster.side === 'L' ? window.innerWidth + 40 : -40; FX.beam(cc.x, cc.y, fx, cc.y, color); each(p => FX.hit(p.x, p.y)); this.flash(this.rgba(color, .2)); break; }
+      case 'poison': each(p => FX.spawn(p.x, p.y, { count: 14, colors: ['#57b18d', '#3a7d5f'], up: 1, grav: -0.02, maxSpd: 2.5, sizeMin: 4, sizeMax: 8, lifeMax: 40 })); break;
+      case 'shock': each(p => { FX.ring(p.x, p.y, color); FX.dust(p.x, p.y + 20); }); Shake.hit(10); break;
+      case 'heal': each(p => { FX.heal(p.x, p.y); FX.ring(p.x, p.y, '#57b18d'); }); break;
+      case 'holy': each(p => { FX.heal(p.x, p.y); FX.ring(p.x, p.y, '#d9b45f'); FX.stars(p.x, p.y); }); this.flash('rgba(217,180,95,.22)'); break;
+      case 'buff': each(p => { FX.ring(p.x, p.y, '#d9b45f'); FX.stars(p.x, p.y); }); break;
+      case 'curse': each(p => FX.spawn(p.x, p.y, { count: 10, colors: ['#8676a4', '#5f4f7a'], up: -1, grav: 0.08, maxSpd: 2, sizeMin: 3, sizeMax: 6, lifeMax: 34 })); break;
+      case 'dome': each(p => FX.dome(p.x, p.y, color)); break;
+      case 'drain': each(p => { FX.projectile(p.x, p.y, cc.x, cc.y, '#e070ac'); FX.hit(p.x, p.y); }); break;
+      case 'bullet': each(p => FX.projectile(cc.x, cc.y, p.x, p.y, color, () => FX.hit(p.x, p.y))); break;
+      case 'starshower': each(p => FX.projectile(p.x, -30, p.x, p.y, '#d9b45f', () => { FX.stars(p.x, p.y); FX.boom(p.x, p.y); })); break;
+      case 'rainbow': each(p => { FX.rainbow(p.x, p.y, 12); FX.ring(p.x, p.y, color); }); break;
+      case 'music': each(p => FX.spawn(p.x, p.y, { count: 8, colors: ['#8676a4', '#c9a6e0'], up: 1.5, grav: -0.02, maxSpd: 2, sizeMin: 4, sizeMax: 7, lifeMax: 40 })); break;
+      case 'dash': this.speedlines(true); each(p => FX.slash(p.x, p.y, color)); break;
+      default: each(p => FX.hit(p.x, p.y));
+    }
   },
 
   /* ============================================================
@@ -469,9 +500,14 @@ const Combat = {
         const ups = Genetics.grantXp(k.meme, u.def.xp);
         if (ups) {
           k.stats = Genetics.effStats(k.meme); k.hpMax = k.stats.hp; k.hp = Math.min(k.hpMax, k.hp + 8);
+          k.abilities = Genetics.abilities(k.meme);   // pick up any newly learned move
           this.updateHp(k);
           const kc = centerOf(k.el); FX.confetti(kc.x, kc.y, 16);
-          floatText(kc.x, kc.y - 80, 'LEVEL UP!', { color: '#eac058', size: 20 });
+          floatText(kc.x, kc.y - 80, 'LEVEL UP!', { color: '#d9b45f', size: 20 });
+          for (const id of (k.meme._lastLearned || [])) {
+            floatText(kc.x, kc.y - 108, 'Learned ' + DATA.ABILITIES[id].name + '!', { color: '#4a9fd4', size: 16 });
+            this.log(`${k.name} learned ${DATA.ABILITIES[id].name}!`, true, DATA.ABILITIES[id].ico);
+          }
         }
       }
       if (u.def.splits) {
@@ -479,7 +515,7 @@ const Combat = {
           const mini = { id: U.uid('v'), isMeme: false, def: DATA.VIRUSES.miniblob, virusId: 'miniblob', side: 'R',
             name: DATA.VIRUSES.miniblob.name,
             stats: { atk: DATA.VIRUSES.miniblob.atk, int: DATA.VIRUSES.miniblob.atk, spd: DATA.VIRUSES.miniblob.spd, lck: 3, crit: 4, resist: 0 },
-            hp: DATA.VIRUSES.miniblob.hp, hpMax: DATA.VIRUSES.miniblob.hp, statuses: [], special: null, specialCd: 99, mag: false,
+            hp: DATA.VIRUSES.miniblob.hp, hpMax: DATA.VIRUSES.miniblob.hp, statuses: [], abilities: ['bonk'], cds: {},
             el: null, body: null, back: true };
           mini.x = U.clamp(u.x + (i ? 5 : -5), 60, 92); mini.homeX = mini.x;
           st.units.push(mini); this.spawnUnit(mini);
@@ -721,7 +757,7 @@ const Combat = {
     (async () => {
       switch (it.battle) {
         case 'heal': { const t = await pick(false); if (!t) return; Game.removeItem(id); this.healUnit(t, it.power); break; }
-        case 'energy': { const t = await pick(false); if (!t) return; Game.removeItem(id); t.specialCd = 0; toast(`${U.esc(t.name)} is charged up!`, 2400, 'energycan'); break; }
+        case 'energy': { const t = await pick(false); if (!t) return; Game.removeItem(id); t.cds = {}; toast(`${U.esc(t.name)}'s abilities are ready!`, 2400, 'energycan'); break; }
         case 'revive': {
           const t = await pick(true); if (!t) return; Game.removeItem(id);
           t.hp = Math.round(t.hpMax / 2); t.statuses = [];
@@ -766,6 +802,7 @@ const Combat = {
       if (itemDrop) Game.addItem(itemDrop);
       for (const u of survivors) {
         Genetics.grantXp(u.meme, xpEach);
+        for (const id of (u.meme._lastLearned || [])) toast(`<b>${U.esc(u.meme.name)}</b> learned <b>${DATA.ABILITIES[id].name}</b>!`, 3400, DATA.ABILITIES[id].ico);
         if (!u.meme.retired) { u.meme.retired = true; Game.state.stats.retired++; retiredNames.push(u.meme.name); }
       }
       Game.unlock('shop'); Game.unlock('inventory');

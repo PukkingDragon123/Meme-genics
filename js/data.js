@@ -61,7 +61,7 @@ DATA.GENES = {
       nyan:   { dom: 3, label: 'Nyan',   ability: 'nyandash',   role: 'mage', full: true,  special: { name: 'Rainbow Road', kind: 'aoe', cd: 3, mag: true } },
       tung:   { dom: 3, label: 'Tung Tung Sahur', ability: 'banhammer', role: 'bruiser', full: true, special: { name: 'Sahur Combo', kind: 'multi', cd: 3, mag: false } },
       shark:  { dom: 2, label: 'Tralalero Shark', ability: 'zoomies', role: 'striker', full: true, special: { name: 'Shark Rush', kind: 'multi', cd: 3, mag: false } },
-      capp:   { dom: 2, label: 'Cappuccino', ability: 'ggez',   role: 'assassin', full: true, special: { name: 'Assassino',  kind: 'nuke',   cd: 3, mag: false } },
+      capp:   { dom: 2, label: 'Cappuccino', ability: 'lastlaugh', role: 'assassin', full: true, special: { name: 'Assassino',  kind: 'nuke',   cd: 3, mag: false } },
       croco:  { dom: 2, label: 'Bombardiro', ability: 'deepfry', role: 'bomber', full: true, special: { name: 'Bombardiro', kind: 'aoe',    cd: 3, mag: true } },
       ghost:  { dom: 1, label: 'Spooky', rare: true, ability: 'unoreverse', role: 'trickster', special: { name: 'UNO Reverse', kind: 'shield', cd: 3, mag: true } },
     }
@@ -141,38 +141,56 @@ DATA.BAD_TRAITS = Object.keys(DATA.TRAITS).filter(k => DATA.TRAITS[k].kind === '
 DATA.MUTATION_TRAITS = [...DATA.GOOD_TRAITS, 'immortalsnail', 'clickbait', 'cursed', ...DATA.BAD_TRAITS];
 
 /* ============================================================
-   ABILITIES — kept for card/pill flavor. Combat uses the
-   meme's face SPECIAL (above), driven by QTE skill.
+   ABILITIES — 40 moves. Each has a unique icon + VFX + color.
+   Memes learn them on level up. Combat drives them with QTEs.
+   kind: strike|magic|nuke|aoe|multi|dot|heal|buff|debuff|shield|execute|lifesteal
+   qte:  timing|mash|none   mag: scales off BRAIN instead of BONK
    ============================================================ */
 DATA.ABILITIES = {
-  bonk:      { name: 'Basic Strike', ico: 'hammer', cd: 0, desc: 'A timed strike. Nail the timing for a crit.' },
-  yeet:      { name: 'YEET',        ico: 'throw',    cd: 3, desc: 'A huge single hit that knocks the target back.' },
-  deepfry:   { name: 'Bombardiro',  ico: 'fries',    cd: 3, desc: 'Explosive damage to the whole enemy team.' },
-  rickroll:  { name: 'Rickroll',    ico: 'note',     cd: 3, desc: 'Weakens every enemy — never gonna give you up.' },
-  touchgrass:{ name: 'Touch Grass', ico: 'sprout',   cd: 3, desc: 'Heals the most-hurt ally. Go outside.' },
-  stonks:    { name: 'STONKS',      ico: 'chartup',  cd: 3, desc: 'Line goes up — the whole team hits harder.' },
-  unoreverse:{ name: 'UNO Reverse', ico: 'loop',     cd: 3, desc: 'Shields the team against the next wave of hits.' },
-  zoomies:   { name: 'Zoomies',     ico: 'wind',     cd: 3, desc: 'A rapid multi-hit flurry (mash to add hits).' },
-  banhammer: { name: 'Ban Hammer',  ico: 'hammer',   cd: 3, desc: 'Massive single hit. Straight to jail.' },
-  airhorn:   { name: 'MLG Airhorn', ico: 'horn',     cd: 3, desc: 'A blaring blast across the enemy line.' },
-  nyandash:  { name: 'Rainbow Road',ico: 'rainbow',  cd: 3, desc: 'Rainbow damage to the whole enemy team.' },
-  ggez:      { name: 'Last Laugh',  ico: 'trophy',   cd: 3, desc: 'A crit-heavy finisher — deadly to low targets.' },
+  bonk:        { name: 'Basic Strike', ico: 'hammer',     kind: 'strike',   mag: 0, power: 1.0, cd: 0, qte: 'timing', vfx: 'slash',      color: '#f2f4f4', desc: 'A timed strike. Nail the timing for a crit.' },
+  yeet:        { name: 'YEET',         ico: 'throw',      kind: 'nuke',     mag: 0, power: 2.2, cd: 3, qte: 'timing', vfx: 'punch',      color: '#d9b45f', desc: 'A huge single hit that launches the target.' },
+  deepfry:     { name: 'Deep Fry',     ico: 'fries',      kind: 'dot',      mag: 1, power: 1.2, cd: 3, qte: 'timing', vfx: 'fire',       color: '#d98a3a', desc: 'BRAIN damage and sets the target on fire.' },
+  rickroll:    { name: 'Rickroll',     ico: 'note',       kind: 'debuff',   mag: 1, power: 0,   cd: 3, qte: 'none',   vfx: 'music',      color: '#8676a4', desc: 'Weakens every enemy. Never gonna give you up.' },
+  touchgrass:  { name: 'Touch Grass',  ico: 'sprout',     kind: 'heal',     mag: 1, power: 1.6, cd: 3, qte: 'timing', vfx: 'heal',       color: '#57b18d', desc: 'Heals the team. Go outside for a sec.' },
+  stonks:      { name: 'STONKS',       ico: 'chartup',    kind: 'buff',     mag: 1, power: 0,   cd: 3, qte: 'none',   vfx: 'buff',       color: '#57b18d', desc: 'Line goes up — the whole team hits harder.' },
+  unoreverse:  { name: 'UNO Reverse',  ico: 'loop',       kind: 'shield',   mag: 1, power: 0,   cd: 3, qte: 'none',   vfx: 'dome',       color: '#4a9fd4', desc: 'Shields the team against the next hits.' },
+  zoomies:     { name: 'Zoomies',      ico: 'wind',       kind: 'multi',    mag: 0, power: 0.7, cd: 3, qte: 'mash',   vfx: 'dash',       color: '#d9b45f', desc: 'A rapid multi-hit flurry (mash!).' },
+  banhammer:   { name: 'Ban Hammer',   ico: 'hammer2',    kind: 'nuke',     mag: 0, power: 2.4, cd: 4, qte: 'timing', vfx: 'meteor',     color: '#e0655e', desc: 'Massive single hit. Straight to jail.' },
+  airhorn:     { name: 'MLG Airhorn',  ico: 'horn',       kind: 'aoe',      mag: 1, power: 0.9, cd: 3, qte: 'timing', vfx: 'beam',       color: '#d9b45f', desc: 'A blaring blast across the enemy line.' },
+  nyandash:    { name: 'Rainbow Road', ico: 'rainbow',    kind: 'aoe',      mag: 1, power: 1.1, cd: 3, qte: 'timing', vfx: 'rainbow',    color: '#e070ac', desc: 'Rainbow damage to the whole enemy team.' },
+  lastlaugh:   { name: 'Last Laugh',   ico: 'trophy',     kind: 'execute',  mag: 0, power: 1.2, cd: 3, qte: 'timing', vfx: 'slash',      color: '#d9b45f', desc: 'Finisher — double damage vs low-HP foes.' },
+  fireball:    { name: 'Fireball',     ico: 'fireball',   kind: 'magic',    mag: 1, power: 1.5, cd: 2, qte: 'timing', vfx: 'fireball',   color: '#e0655e', desc: 'Hurl a flaming orb at one enemy.' },
+  icespike:    { name: 'Ice Spike',    ico: 'iceshard',   kind: 'dot',      mag: 1, power: 1.4, cd: 2, qte: 'timing', vfx: 'ice',        color: '#4a9fd4', desc: 'Pierces and slows a single enemy.' },
+  thunderclap: { name: 'Thunderclap',  ico: 'bolt2',      kind: 'magic',    mag: 1, power: 1.7, cd: 3, qte: 'timing', vfx: 'lightning',  color: '#d9b45f', desc: 'A bolt of lightning strikes one foe.' },
+  meteorstrike:{ name: 'Meteor',       ico: 'meteor',     kind: 'nuke',     mag: 1, power: 2.6, cd: 4, qte: 'timing', vfx: 'meteor',     color: '#e0655e', desc: 'Call down a devastating meteor.' },
+  shadowstab:  { name: 'Shadow Stab',  ico: 'dagger',     kind: 'strike',   mag: 0, power: 1.5, cd: 2, qte: 'timing', vfx: 'slash',      color: '#8676a4', desc: 'A fast strike from the shadows.' },
+  crossslash:  { name: 'Cross Slash',  ico: 'crossblade', kind: 'multi',    mag: 0, power: 0.9, cd: 3, qte: 'mash',   vfx: 'multislash', color: '#f2f4f4', desc: 'A flurry of blade strikes (mash!).' },
+  quakestomp:  { name: 'Quake Stomp',  ico: 'boot2',      kind: 'aoe',      mag: 0, power: 1.0, cd: 3, qte: 'timing', vfx: 'shock',      color: '#d98a3a', desc: 'Shakes the ground — hits all foes.' },
+  venombite:   { name: 'Venom Bite',   ico: 'fang',       kind: 'dot',      mag: 0, power: 1.1, cd: 2, qte: 'timing', vfx: 'poison',     color: '#57b18d', desc: 'A poisonous chomp.' },
+  laserbeam:   { name: 'Laser Beam',   ico: 'laser2',     kind: 'aoe',      mag: 1, power: 1.2, cd: 3, qte: 'timing', vfx: 'beam',       color: '#e0655e', desc: 'A searing beam across the enemy line.' },
+  holylight:   { name: 'Holy Light',   ico: 'halo2',      kind: 'heal',     mag: 1, power: 2.0, cd: 4, qte: 'timing', vfx: 'holy',       color: '#d9b45f', desc: 'A radiant, powerful team heal.' },
+  warcry:      { name: 'War Cry',      ico: 'shout',      kind: 'buff',     mag: 0, power: 0,   cd: 3, qte: 'none',   vfx: 'buff',       color: '#e0655e', desc: 'Rally the team to hit harder.' },
+  hex:         { name: 'Hex',          ico: 'skullmagic', kind: 'debuff',   mag: 1, power: 0.4, cd: 3, qte: 'none',   vfx: 'curse',      color: '#8676a4', desc: 'Curse all foes to deal less damage.' },
+  barrier:     { name: 'Barrier',      ico: 'shield2',    kind: 'shield',   mag: 1, power: 0,   cd: 3, qte: 'none',   vfx: 'dome',       color: '#4a9fd4', desc: 'Raise a protective barrier for the team.' },
+  drainkiss:   { name: 'Drain Kiss',   ico: 'lips',       kind: 'lifesteal',mag: 1, power: 1.2, cd: 3, qte: 'timing', vfx: 'drain',      color: '#e070ac', desc: 'Steal HP from an enemy.' },
+  comboflurry: { name: 'Combo Flurry', ico: 'fist2',      kind: 'multi',    mag: 0, power: 0.8, cd: 3, qte: 'mash',   vfx: 'punch',      color: '#d9b45f', desc: 'Rapid punches (mash for more!).' },
+  groundpound: { name: 'Ground Pound', ico: 'quake',      kind: 'aoe',      mag: 0, power: 1.1, cd: 3, qte: 'timing', vfx: 'shock',      color: '#d98a3a', desc: 'Slam the earth for team-wide damage.' },
+  snipeshot:   { name: 'Snipe Shot',   ico: 'scope',      kind: 'nuke',     mag: 0, power: 2.2, cd: 3, qte: 'timing', vfx: 'bullet',     color: '#4a9fd4', desc: 'A precise, heavy long-range shot.' },
+  blizzard:    { name: 'Blizzard',     ico: 'snowflake',  kind: 'aoe',      mag: 1, power: 1.1, cd: 4, qte: 'timing', vfx: 'ice',        color: '#4a9fd4', desc: 'A freezing storm hits all foes.' },
+  inferno:     { name: 'Inferno',      ico: 'flames',     kind: 'aoe',      mag: 1, power: 1.2, cd: 4, qte: 'timing', vfx: 'fire',       color: '#e0655e', desc: 'Engulf the enemy line in flames.' },
+  poisoncloud: { name: 'Poison Cloud', ico: 'cloud2',     kind: 'aoe',      mag: 1, power: 0.9, cd: 3, qte: 'timing', vfx: 'poison',     color: '#57b18d', desc: 'A toxic cloud damages all foes.' },
+  megapunch:   { name: 'Mega Punch',   ico: 'megafist',   kind: 'nuke',     mag: 0, power: 2.4, cd: 4, qte: 'timing', vfx: 'punch',      color: '#e0655e', desc: 'One colossal, screen-shaking punch.' },
+  healwave:    { name: 'Heal Wave',    ico: 'plus2',      kind: 'heal',     mag: 1, power: 1.4, cd: 3, qte: 'timing', vfx: 'heal',       color: '#57b18d', desc: 'A rolling wave of healing.' },
+  rally:       { name: 'Rally',        ico: 'flag',       kind: 'buff',     mag: 0, power: 0,   cd: 3, qte: 'none',   vfx: 'buff',       color: '#d9b45f', desc: 'Plant the flag — team power up.' },
+  curse:       { name: 'Evil Eye',     ico: 'eye',        kind: 'debuff',   mag: 1, power: 0.5, cd: 3, qte: 'none',   vfx: 'curse',      color: '#8676a4', desc: 'A withering glare weakens all foes.' },
+  ironwall:    { name: 'Iron Wall',    ico: 'wall',       kind: 'shield',   mag: 1, power: 0,   cd: 4, qte: 'none',   vfx: 'dome',       color: '#8a939a', desc: 'A heavy shield for the whole team.' },
+  vampstrike:  { name: 'Vamp Strike',  ico: 'vampfang',   kind: 'lifesteal',mag: 0, power: 1.3, cd: 3, qte: 'timing', vfx: 'drain',      color: '#e0655e', desc: 'Bite an enemy and drink its HP.' },
+  starfall:    { name: 'Starfall',     ico: 'star2',      kind: 'aoe',      mag: 1, power: 1.2, cd: 4, qte: 'timing', vfx: 'starshower', color: '#d9b45f', desc: 'Rain stars on the whole enemy team.' },
+  finalflash:  { name: 'Final Flash',  ico: 'burst',      kind: 'nuke',     mag: 1, power: 3.0, cd: 5, qte: 'timing', vfx: 'beam',       color: '#d9b45f', desc: 'An enormous beam of pure BRAIN.' },
 };
 
-// heritable "spice" ability pool (shown on cards; passed down when breeding)
-DATA.LEARNABLE = ['yeet', 'deepfry', 'rickroll', 'touchgrass', 'stonks', 'unoreverse',
-  'zoomies', 'banhammer', 'airhorn', 'nyandash', 'ggez'];
-
-/* how each special resolves in combat */
-DATA.SPECIALS = {
-  nuke:   { desc: 'Big single hit' },
-  aoe:    { desc: 'Hits all enemies' },
-  multi:  { desc: 'Rapid multi-hit (mash!)' },
-  heal:   { desc: 'Heals the hurt team' },
-  buff:   { desc: 'Team power up' },
-  debuff: { desc: 'Weakens all foes' },
-  shield: { desc: 'Team shield' },
-};
+// everything except the always-known Basic Strike is learnable / heritable
+DATA.LEARNABLE = Object.keys(DATA.ABILITIES).filter(k => k !== 'bonk');
 
 /* ============================================================
    STATUS EFFECTS (used lightly by specials)
@@ -202,7 +220,7 @@ DATA.ITEMS = {
   gamermouse:{ name: 'Gamer Mouse',     ico: 'mouse',     kind: 'held', price: 55, stats: { spd: 2, crit: 5 },  desc: '+2 ZOOM, +5% crit.' },
   popblocker:{ name: 'Pop-up Blocker',  ico: 'shield',    kind: 'held', price: 60, stats: { hp: 10 },           desc: '+10 max HP.' },
   pizza:     { name: 'Pizza Slice',     ico: 'pizza',      kind: 'consumable', price: 15, battle: 'heal', power: 18, desc: 'BATTLE: heal a meme for 18 HP.' },
-  energy:    { name: 'G-Fuel Barrel',   ico: 'energycan',  kind: 'consumable', price: 20, battle: 'energy', desc: 'BATTLE: refresh a meme (special ready + extra turn).' },
+  energy:    { name: 'G-Fuel Barrel',   ico: 'energycan',  kind: 'consumable', price: 20, battle: 'energy', desc: 'BATTLE: clears a meme\'s ability cooldowns.' },
   copium:    { name: 'Tank of Copium',  ico: 'copiumtank', kind: 'consumable', price: 80, battle: 'revive', desc: 'BATTLE: revive a fallen meme at 50% HP.' },
   usbstick:  { name: 'Antivirus USB',   ico: 'usb',        kind: 'consumable', price: 70, battle: 'nuke', power: 12, desc: 'BATTLE: deals 12 damage to EVERY virus.' },
   preservative:{ name: 'Brain Juice',   ico: 'flask',      kind: 'consumable', price: 60, home: 'xp', power: 45, desc: 'HOME: feeds a meme a big chunk of XP.' },

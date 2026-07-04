@@ -115,6 +115,42 @@ const FX = {
     layer.appendChild(r);
     setTimeout(() => r.remove(), 420);
   },
+  _fl() { return document.getElementById('float-layer'); },
+  slash(x, y, color = '#fff', ang) {
+    const l = this._fl(); if (!l) return;
+    const d = U.el('div', 'fx-slash');
+    d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.setProperty('--c', color);
+    d.style.transform = `translate(-50%,-50%) rotate(${ang !== undefined ? ang : U.rand(-0.9, 0.9)}rad)`;
+    l.appendChild(d); setTimeout(() => d.remove(), 260);
+  },
+  beam(x1, y1, x2, y2, color = '#fff') {
+    const l = this._fl(); if (!l) return;
+    const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy), ang = Math.atan2(dy, dx);
+    const d = U.el('div', 'fx-beam');
+    d.style.left = x1 + 'px'; d.style.top = y1 + 'px'; d.style.width = len + 'px';
+    d.style.setProperty('--c', color); d.style.setProperty('--r', ang + 'rad');
+    l.appendChild(d); setTimeout(() => d.remove(), 340);
+  },
+  bolt(x, y, color = '#e6c84d') {
+    const l = this._fl(); if (!l) return;
+    const d = U.el('div', 'fx-bolt');
+    d.style.left = x + 'px'; d.style.top = (y - 130) + 'px'; d.style.setProperty('--c', color);
+    l.appendChild(d); setTimeout(() => d.remove(), 300);
+  },
+  dome(x, y, color = '#4a9fd4') {
+    const l = this._fl(); if (!l) return;
+    const d = U.el('div', 'fx-dome');
+    d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.setProperty('--c', color);
+    l.appendChild(d); setTimeout(() => d.remove(), 600);
+  },
+  projectile(x1, y1, x2, y2, color = '#fff', cb) {
+    const l = this._fl(); if (!l) return;
+    const d = U.el('div', 'fx-proj');
+    d.style.left = x1 + 'px'; d.style.top = y1 + 'px'; d.style.setProperty('--c', color);
+    l.appendChild(d);
+    requestAnimationFrame(() => { d.style.left = x2 + 'px'; d.style.top = y2 + 'px'; });
+    setTimeout(() => { d.remove(); if (cb) cb(); }, 250);
+  },
 };
 
 /* ============================================================

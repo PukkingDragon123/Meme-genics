@@ -429,3 +429,33 @@ html, body { height: 100%; font-family: var(--font); color: var(--text); overflo
 
 .fx-ring { position: absolute; width: 14px; height: 14px; border: 3px solid #fff; border-radius: 50%; transform: translate(-50%,-50%); animation: ringExpand .42s ease-out forwards; pointer-events: none; }
 @keyframes ringExpand { from { width: 8px; height: 8px; opacity: .9; } to { width: 72px; height: 72px; opacity: 0; } }
+
+/* ability VFX primitives */
+.fx-slash { position: absolute; width: 90px; height: 8px; border-radius: 4px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--c), transparent);
+  box-shadow: 0 0 12px var(--c); animation: slashFlash .26s ease-out forwards; }
+@keyframes slashFlash { 0% { opacity: 0; width: 30px; } 30% { opacity: 1; width: 100px; } 100% { opacity: 0; width: 110px; } }
+.fx-beam { position: absolute; height: 12px; transform-origin: 0 50%; pointer-events: none; border-radius: 6px;
+  background: linear-gradient(90deg, var(--c), #fff, var(--c)); box-shadow: 0 0 18px var(--c);
+  transform: rotate(var(--r,0)) scaleY(.2); animation: beamFlash .34s ease-out forwards; }
+@keyframes beamFlash { 0% { opacity: 0; transform: rotate(var(--r,0)) scaleY(.2); } 25% { opacity: 1; transform: rotate(var(--r,0)) scaleY(1); } 100% { opacity: 0; transform: rotate(var(--r,0)) scaleY(1); } }
+.fx-bolt { position: absolute; width: 10px; height: 130px; transform: translateX(-50%); pointer-events: none;
+  background: linear-gradient(180deg, transparent, var(--c), #fff); box-shadow: 0 0 16px var(--c);
+  clip-path: polygon(40% 0, 100% 45%, 55% 45%, 100% 100%, 0 55%, 45% 55%); animation: boltFlash .3s ease-out forwards; }
+@keyframes boltFlash { 0% { opacity: 0; transform: translateX(-50%) scaleY(.4); } 30% { opacity: 1; transform: translateX(-50%) scaleY(1); } 100% { opacity: 0; } }
+.fx-dome { position: absolute; width: 90px; height: 90px; transform: translate(-50%,-50%); border-radius: 50%; pointer-events: none;
+  border: 3px solid var(--c); background: radial-gradient(circle, transparent 55%, var(--c) 100%); opacity: .5; animation: domePulse .6s ease-out forwards; }
+@keyframes domePulse { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.5); } 40% { opacity: .55; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1.15); } }
+.fx-proj { position: absolute; width: 14px; height: 14px; border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none;
+  background: radial-gradient(circle, #fff, var(--c)); box-shadow: 0 0 14px var(--c); transition: left .25s linear, top .25s linear; }
+
+/* anime ability cut-in */
+.anime-cut { position: absolute; left: 0; right: 0; top: 38%; height: 120px; pointer-events: none;
+  display: flex; align-items: center; gap: 16px; padding-left: 8%;
+  background: linear-gradient(100deg, transparent, var(--acol) 20%, rgba(38,32,58,.92) 40%, rgba(38,32,58,.92) 75%, transparent);
+  transform: skewY(-4deg); animation: cutIn .62s cubic-bezier(.2,.9,.3,1) forwards; }
+@keyframes cutIn { 0% { opacity: 0; transform: skewY(-4deg) translateX(-30%); } 20% { opacity: 1; transform: skewY(-4deg) translateX(0); } 80% { opacity: 1; transform: skewY(-4deg) translateX(0); } 100% { opacity: 0; transform: skewY(-4deg) translateX(12%); } }
+.anime-cut .ac-face { width: 72px; height: 72px; background: rgba(0,0,0,.35); border-radius: 12px; display: grid; place-items: center; box-shadow: var(--emboss); flex: none; transform: skewY(4deg); }
+.anime-cut .ac-face .meme-px { width: 60px; }
+.anime-cut .ac-name { font-size: 34px; font-weight: 900; letter-spacing: 1px; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.5); display: flex; align-items: center; gap: 10px; transform: skewY(4deg); }
+.anime-cut .ac-name img { width: 30px; }
