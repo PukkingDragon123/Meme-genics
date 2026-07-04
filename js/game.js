@@ -6,10 +6,11 @@
    ============================================================ */
 
 const Game = {
-  SAVE_KEY: 'memegenics_save_v4',
+  SAVE_KEY: 'memegenics_save_v5',
   CAPACITY: 12,
   HATCH_MS: 18000,      // egg incubation time (seconds)
   BREED_CD_MS: 24000,   // per-parent breeding cooldown (seconds)
+  MAX_STAGES: 5,        // energy: a meme retires after this many fights
 
   state: null,
 
@@ -18,6 +19,7 @@ const Game = {
   newState() {
     return {
       coins: 40,
+      day: 1,
       memes: [],
       graveyard: [],
       inventory: {},
@@ -27,6 +29,8 @@ const Game = {
       seenIntro: false,
       unlocks: {},
       eggs: [],
+      dms: [],            // adoption DMs from people online (retired memes)
+      pendingPacks: [],   // skill-card packs earned but not yet opened
       dex: { faces: {}, viruses: {} },
       theme: 'green',
       stats: { battles: 0, wins: 0, virusesDeleted: 0, memesBred: 0, retired: 0 },
@@ -157,6 +161,145 @@ const Game = {
     return payout;
   },
 
+  /* ---------------- energy / retirement ---------------- */
+
+  // fights left before a meme runs out of energy and retires (breed-only)
+  energyLeft(meme) { return Math.max(0, this.MAX_STAGES - (meme.stagesFought || 0)); },
+
+  retire(meme) {
+    if (!meme || meme.retired) return false;
+    meme.retired = true;
+    this.state.stats.retired = (this.state.stats.retired || 0) + 1;
+    return true;
+  },
+
+  /* ---------------- skill card packs ---------------- */
+
+  rollPack(tier = 0) {
+    const cards = [];
+    for (let i = 0; i < 4; i++) cards.push(DATA.rollCard(tier));
+    return cards;
+  },
+
+  // hand a fresh pack to the player (opened from the desktop)
+  awardPack(tier = 0) {
+    const cards = this.rollPack(tier);
+    if (!this.state.pendingPacks) this.state.pendingPacks = [];
+    this.state.pendingPacks.push(cards);
+    return cards;
+  },
+
+  cardTitle(card) {
+    if (card.kind === 'stat') return `+${card.amt} ${DATA.STAT_NAME[card.stat]}`;
+    if (card.kind === 'trait') return DATA.TRAITS[card.trait] ? DATA.TRAITS[card.trait].name : 'Trait';
+    if (card.kind === 'ability') return DATA.ABILITIES[card.id] ? DATA.ABILITIES[card.id].name : 'Skill';
+    return 'Card';
+  },
+  cardIcon(card) {
+    if (card.kind === 'stat') return DATA.STAT_ICO[card.stat];
+    if (card.kind === 'trait') return (DATA.TRAITS[card.trait] && DATA.TRAITS[card.trait].ico) || 'star';
+    if (card.kind === 'ability') return (DATA.ABILITIES[card.id] && DATA.ABILITIES[card.id].ico) || card.id;
+    return 'star';
+  },
+  cardDesc(card) {
+    if (card.kind === 'stat') return `Permanently boosts ${DATA.STAT_NAME[card.stat]}.`;
+    if (card.kind === 'trait') return (DATA.TRAITS[card.trait] && DATA.TRAITS[card.trait].desc) || 'A passive perk.';
+    if (card.kind === 'ability') return (DATA.ABILITIES[card.id] && DATA.ABILITIES[card.id].desc) || 'A new combat skill.';
+    return '';
+  },
+
+  // apply a card to a meme; returns a reason-string on failure, true on success
+  applyCard(card, meme) {
+    if (!card || !meme) return 'No target';
+    if (card.kind === 'stat') {
+      meme.base[card.stat] = (meme.base[card.stat] || 0) + card.amt;
+      meme.hpMax = Genetics.effStats(meme).hp;
+      return true;
+    }
+    if (card.kind === 'trait') {
+      if (meme.traits.includes(card.trait)) return 'Already has it';
+      if (meme.traits.length >= Genetics.MAX_TRAITS) {
+        const bad = meme.traits.findIndex(t => DATA.TRAITS[t] && DATA.TRAITS[t].kind === 'bad');
+        if (bad === -1) return 'Trait slots full';
+        meme.traits.splice(bad, 1);
+      }
+      meme.traits.push(card.trait);
+      meme.hpMax = Genetics.effStats(meme).hp;
+      return true;
+    }
+    if (card.kind === 'ability') {
+      if (meme.learned && meme.learned.includes(card.id)) return 'Already knows it';
+      if (meme.learned && meme.learned.length >= Genetics.MAX_ABILITIES) return 'Skill slots full';
+      return Genetics.teach(meme, card.id) ? true : 'Could not learn';
+    }
+    return 'Unknown card';
+  },
+
+  /* ---------------- online adopters (free money for retired memes) ---------------- */
+
+  rollAdoption() {
+    if (!this.state.dms) this.state.dms = [];
+    if (this.state.dms.length >= 4) return null;
+    const already = new Set(this.state.dms.map(d => d.memeId));
+    const pool = this.state.memes.filter(m => m.retired && !already.has(m.id));
+    if (!pool.length) return null;
+    const m = U.pick(pool);
+    const payout = 45 + m.gen * 12 + m.level * 8 + Math.round(Genetics.power(m) / 2);
+    const dm = {
+      id: U.uid('dm'),
+      from: U.pick(DATA.ADOPTER_NAMES),
+      memeId: m.id,
+      memeName: m.name,
+      line: U.pick(DATA.ADOPT_LINES).replace('{n}', m.name),
+      coins: payout,
+    };
+    this.state.dms.push(dm);
+    return dm;
+  },
+
+  acceptAdoption(dm) {
+    if (!dm) return 0;
+    const m = this.getMeme(dm.memeId);
+    const i = this.state.dms.indexOf(dm);
+    if (i >= 0) this.state.dms.splice(i, 1);
+    if (m) {
+      const idx = this.state.memes.indexOf(m);
+      if (idx >= 0) this.state.memes.splice(idx, 1);
+      Desktop.removeWalker(m.id);
+      this.addCoins(dm.coins, { x: window.innerWidth / 2, y: window.innerHeight / 2 });
+    }
+    Desktop.updateTray();
+    this.save();
+    return dm.coins;
+  },
+
+  declineAdoption(dm) {
+    const i = this.state.dms.indexOf(dm);
+    if (i >= 0) this.state.dms.splice(i, 1);
+    this.save();
+  },
+
+  /* ---------------- sleep / skip a day ---------------- */
+
+  sleep() {
+    this.state.day = (this.state.day || 1) + 1;
+    const now = Date.now();
+    // a good night's rest: eggs finish incubating, parents are ready again
+    for (const egg of this.state.eggs) egg.hatchAt = Math.min(egg.hatchAt, now);
+    for (const m of this.state.memes) { if (m.breedReadyAt) m.breedReadyAt = 0; if (!m.matured) m.matured = true; }
+    // overnight coin trickle + fresh shop
+    const trickle = U.randInt(5, 14);
+    this.addCoins(trickle, null);
+    if (this.isUnlocked('shop')) this.restockShop();
+    // people online browse overnight and may DM to adopt a retired meme
+    if (U.chance(0.75)) this.rollAdoption();
+    this.tickEggs();
+    Desktop.refreshAllWindows();
+    Desktop.updateTray();
+    this.save();
+    return { day: this.state.day, coins: trickle };
+  },
+
   /* ---------------- eggs / incubation ---------------- */
 
   secsLeft(untilMs) { return Math.max(0, Math.ceil((untilMs - Date.now()) / 1000)); },
@@ -224,6 +367,7 @@ const Game = {
     if (this.isUnlocked('shop')) this.restockShop();
     if (U.chance(0.4) && this.state.memes.length < this.CAPACITY) this.strayEvent();
     else if (U.chance(0.3)) { const amt = U.randInt(6, 16); this.addCoins(amt, null); toast(`Found ${amt} coins in the cache!`, 2600, 'coin'); }
+    if (U.chance(0.55)) this.rollAdoption();   // someone online may want to adopt a retiree
     this.ensureNotSoftlocked();
     Desktop.refreshWalkers();
     Desktop.refreshAllWindows();

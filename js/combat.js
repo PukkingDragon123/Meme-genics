@@ -19,6 +19,9 @@ const Combat = {
     SFX.play('whoosh');
     const battle = document.getElementById('battle');
     battle.classList.remove('hidden');
+    // cooler level design — each stage fights in a themed "zone"
+    const zi = stage.endless ? 5 : Math.min(4, Math.max(0, (stage.diff || 1) - 1));
+    battle.dataset.zone = ['downloads', 'system', 'registry', 'deepweb', 'core', 'cloud'][zi];
     document.getElementById('start-menu').classList.add('hidden');
     document.getElementById('battle-log').innerHTML = '';
     document.getElementById('qte-layer').innerHTML = '';
@@ -272,10 +275,13 @@ const Combat = {
     if (abId !== 'bonk') await this.animeCutIn(u, ab);
     else { this.focusUnit(u, 1.5); await U.wait(280); }
 
-    // QTE — skill layer
+    // QTE — skill layer: each ability maps to one of 20 mini-games
     let mult = 1, hits = 3, perfect = false;
-    if (ab.qte === 'mash') { const r = await this.qteMash({ label: ab.name + '!', sub: 'MASH!', time: 1500, target: 12 }); mult = 0.9 + r * 0.7; hits = 2 + Math.round(r * 3); }
-    else if (ab.qte === 'timing') { const g = await this.qteBar({ label: ab.name + '!', sub: ab.kind === 'heal' ? 'time the heal' : 'nail the timing', time: 1850, sweet: 18, speed: 122 }); mult = this.GRADE_MULT[g]; perfect = g === 'perfect'; }
+    const mini = abId === 'bonk' ? 'timing' : QTE.forAbility(ab, abId);
+    const g = await QTE.play(mini, { label: ab.name + '!' });
+    mult = this.GRADE_MULT[g];
+    perfect = g === 'perfect';
+    hits = { miss: 2, ok: 3, good: 4, perfect: 5 }[g] || 3;
     const crit = perfect || U.chance((u.stats.crit || 4) / 100);
 
     const foes = this.livingFoes();
@@ -400,7 +406,8 @@ const Combat = {
     this.focusMid(u, target, 1.4);
     await this.dash(u, target);
 
-    const grade = await this.qteBar({ label: 'PARRY!', sub: 'tap to block', time: 1400, sweet: 20, speed: 150, danger: true });
+    const pk = QTE.forParry((u.def && u.def.name || 'v') + '-' + this.state.round + '-' + (target.meme ? target.meme.id.slice(-3) : ''));
+    const grade = await QTE.play(pk, { label: 'PARRY!', danger: true, time: 1500 });
     const block = this.PARRY_BLOCK[grade];
     let dmg = u.stats.atk * U.rand(0.9, 1.12) * this.outMult(u);
     dmg = Math.max(1, Math.round(dmg * (1 - block)));
@@ -805,7 +812,7 @@ const Combat = {
 
     for (const u of st.deadMemes) Game.killMeme(u.meme, `deleted in ${stage.name}`);
 
-    let coins = 0, itemDrop = null, xpEach = 0;
+    let coins = 0, itemDrop = null, xpEach = 0, pack = null;
     const retiredNames = [];
     if (result === true) {
       coins = Math.max(0, U.randInt(stage.reward[0], stage.reward[1]) + st.loot.coins);
@@ -818,9 +825,11 @@ const Combat = {
       if (itemDrop) Game.addItem(itemDrop);
       for (const u of survivors) {
         Genetics.grantXp(u.meme, xpEach);
-        for (const id of (u.meme._lastLearned || [])) toast(`<b>${U.esc(u.meme.name)}</b> learned <b>${DATA.ABILITIES[id].name}</b>!`, 3400, DATA.ABILITIES[id].ico);
-        if (!u.meme.retired) { u.meme.retired = true; Game.state.stats.retired++; retiredNames.push(u.meme.name); }
+        u.meme.stagesFought = (u.meme.stagesFought || 0) + 1;   // burn a point of energy
+        if (Game.energyLeft(u.meme) <= 0 && Game.retire(u.meme)) retiredNames.push(u.meme.name);
       }
+      // clearing a stage always drops a skill-card pack (opened back on the desktop)
+      pack = Game.awardPack(stage.diff || 0);
       Game.unlock('shop'); Game.unlock('inventory');
       if (stage.foes.includes('spamking')) Game.unlock('endless');
       SFX.play('fanfare'); bigBanner(U.pick(['VICTORY!', 'STAGE CLEAR!', 'FLAWLESS!']));
@@ -846,11 +855,12 @@ const Combat = {
             <span class="loot-chip">${Icon.ico('coin', 18)} +${coins}</span>
             ${it ? `<span class="loot-chip">${Icon.ico(it.ico, 18)} ${it.name}</span>` : ''}
             <span class="loot-chip">${Icon.ico('star', 18)} +${xpEach} XP</span>
+            ${pack ? `<span class="loot-chip gold">${Icon.ico('cards', 18)} Skill Pack</span>` : ''}
           </div>
-          ${retiredNames.length ? `<p style="font-size:12px;color:var(--gold);margin-top:6px">${Icon.ico('crown', 13)} <b>${retiredNames.map(U.esc).join(', ')}</b> survived and RETIRED — breed them for the next generation.</p>` : ''}`
+          ${pack ? `<p style="font-size:12px;opacity:.75;margin-top:6px">A <b>Skill Card Pack</b> dropped — open it back home to teach your memes.</p>` : ''}
+          ${retiredNames.length ? `<p style="font-size:12px;color:var(--gold);margin-top:6px">${Icon.ico('crown', 13)} <b>${retiredNames.map(U.esc).join(', ')}</b> ran out of energy after ${Game.MAX_STAGES} stages and RETIRED — breed them for the next generation.</p>` : ''}`
         : result === 'fled' ? '<p>You grabbed your memes and ran.</p>' : '<p>The viruses took the field... your desktop mourns.</p>'}
         ${deadList.length ? `<p style="margin-top:8px;color:var(--red)"><b>Fallen:</b> ${deadList.map(U.esc).join(', ')}</p>` : ''}
-        <p style="font-size:12px;opacity:.6;margin-top:8px">A day passes on the desktop...</p>
       </div>`,
       actions: [{
         label: 'Back to Desktop', cls: 'good', fn: () => {
@@ -858,6 +868,7 @@ const Combat = {
           document.getElementById('team-track').innerHTML = '';
           this.camWide();
           Game.postBattle();
+          if (typeof Desktop.drainPacks === 'function') Desktop.drainPacks();
         },
       }],
     });

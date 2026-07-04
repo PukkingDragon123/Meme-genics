@@ -69,27 +69,31 @@ const Genetics = {
       parents: opts.parents || null,
       lineage: opts.lineage || [],
       necroposted: false,
-      retired: false,        // survives a fight, then only breeds
+      retired: false,        // out of energy (5 stages), then only breeds
+      stagesFought: 0,       // energy: retires at 5
       kills: 0, battles: 0,
     };
     meme.pheno = this.computePhenotype(genome);
     meme.cls = opts.cls || U.pick(DATA.CLASS_KEYS);
-    // ability kit: class move + this type's signature (+ inherited / random)
-    if (opts.learned) {
-      meme.learned = [...new Set(opts.learned)].slice(0, this.MAX_ABILITIES);
-    } else {
-      const kit = new Set();
-      kit.add(DATA.CLASSES[meme.cls].ability);
-      const sig = DATA.GENES.face.alleles[meme.pheno.face].ability;
-      if (sig) kit.add(sig);
-      while (kit.size < 2) kit.add(U.pick(DATA.LEARNABLE));
-      meme.learned = [...kit];
-    }
+    // memes start with only Basic Strike — abilities are unlocked from card packs
+    meme.learned = opts.learned ? [...new Set(opts.learned)].slice(0, this.MAX_ABILITIES) : [];
     meme.hpMax = this.effStats(meme).hp;
     return meme;
   },
 
   classOf(meme) { return DATA.CLASSES[meme.cls] || DATA.CLASSES.fighter; },
+  sizeMul(meme) {
+    const a = DATA.GENES.size.alleles[meme.pheno.size];
+    return (a && a.mul) || 1;
+  },
+  // teach an ability from a card; returns true if it stuck
+  teach(meme, id) {
+    if (!meme.learned) meme.learned = [];
+    if (meme.learned.includes(id)) return false;
+    if (meme.learned.length >= this.MAX_ABILITIES) return false;
+    meme.learned.push(id);
+    return true;
+  },
 
   MAX_ABILITIES: 6,
   learnAbility(meme) {
@@ -108,7 +112,7 @@ const Genetics = {
         face: ['doge', 'doge'], eyes: ['normal', 'derp'], mouth: ['smile', 'tongue'], extra: ['none', 'blush'],
       },
       cls: 'fighter',
-      learned: ['megapunch', 'yeet'],
+      learned: [],   // everyone starts with only the Basic Strike; unlock more via card packs
       base: { hp: 30, atk: 7, int: 5, spd: 6, lck: 7 },
       traits: ['dank'],
     });
@@ -122,7 +126,7 @@ const Genetics = {
         face: ['frog', 'frog'], eyes: ['sparkly', 'normal'], mouth: ['smile', 'open'], extra: ['none', 'none'],
       },
       cls: 'cleric',
-      learned: ['holylight', 'icespike'],
+      learned: [],   // basic-only to start; earn skills from card packs
       base: { hp: 28, atk: 5, int: 8, spd: 5, lck: 6 },
       traits: ['wholesome'],
     });
@@ -152,11 +156,10 @@ const Genetics = {
     // class: inherit a parent's class, rare mutation to a new one
     const cls = U.chance(0.12) ? U.pick(DATA.CLASS_KEYS) : U.pick([mom.cls, dad.cls].filter(Boolean).length ? [mom.cls, dad.cls].filter(Boolean) : DATA.CLASS_KEYS);
 
-    // abilities: inherit a couple from the parents' pools, plus the class move
+    // abilities: a baby inherits up to 2 skills its parents earned from cards
     const parentPool = [...new Set([...(mom.learned || []), ...(dad.learned || [])])];
-    const learned = new Set([DATA.CLASSES[cls].ability]);
-    for (const a of U.shuffle(parentPool)) { if (learned.size >= 3) break; learned.add(a); }
-    if (U.chance(this.SPICE_MUTATION)) learned.add(U.pick(DATA.LEARNABLE));
+    const learned = new Set();
+    for (const a of U.shuffle(parentPool)) { if (learned.size >= 2) break; learned.add(a); }
 
     // stats: blend + drift (slight upward pressure = generational progress)
     const base = {};
@@ -260,12 +263,11 @@ const Genetics = {
 
   xpToLevel(level) { return Math.round(18 * Math.pow(level, 1.4)); },
 
-  // grantXp returns { ups, learned: [ids] } — a new ability may be learned each level
+  // grantXp: levels raise stats (abilities come from card packs, not levels)
   grantXp(meme, amount) {
     if (meme.traits.includes('maincharacter')) amount = Math.round(amount * 1.3);
     meme.xp += amount;
     let ups = 0;
-    const learned = [];
     if (!meme.learned) meme.learned = [];
     while (meme.level < this.MAX_LEVEL && meme.xp >= this.xpToLevel(meme.level)) {
       meme.xp -= this.xpToLevel(meme.level);
@@ -277,15 +279,9 @@ const Genetics = {
         { v: 'spd', w: meme.base.spd * 0.6 }, { v: 'lck', w: meme.base.lck * 0.6 },
       ]);
       meme.base[stat] += 1;
-      // learn a new ability roughly every other level
-      if (meme.level % 2 === 0 || ups === 1) {
-        const id = this.learnAbility(meme);
-        if (id) learned.push(id);
-      }
     }
     meme.hpMax = this.effStats(meme).hp;
     meme._lastUps = ups;
-    meme._lastLearned = learned;
     return ups;
   },
 

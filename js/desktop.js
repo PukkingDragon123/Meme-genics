@@ -40,6 +40,11 @@ const Desktop = {
       e.currentTarget.classList.toggle('off', !on);
     };
 
+    const bed = document.getElementById('obj-bed');
+    if (bed) bed.onclick = () => this.sleepInBed();
+    const roomPc = document.getElementById('obj-pc');
+    if (roomPc) roomPc.onclick = () => this.exitRoom();
+
     for (const m of Game.state.memes) this.spawnWalker(m);
     this.startWalkerLoop();
 
@@ -55,6 +60,10 @@ const Desktop = {
     document.getElementById('start-ico').innerHTML = Icon.ico('smiley', 20);
     U.qs('#tray-coins .ci').innerHTML = Icon.ico('coin', 16);
     U.qs('#tray-pop .ci').innerHTML = Icon.ico('roster', 16);
+    U.qs('#tray-day .ci').innerHTML = Icon.ico('moon', 15);
+    const mail = document.getElementById('tray-mail');
+    mail.innerHTML = Icon.ico('mail', 16);
+    mail.onclick = () => { SFX.play('open'); this.openDMs(); };
     document.getElementById('tray-sound').innerHTML = Icon.ico('sound', 16);
     document.getElementById('tray-music').innerHTML = Icon.ico('music', 16);
   },
@@ -72,6 +81,7 @@ const Desktop = {
     if (Game.isUnlocked('shop'))      apps.push({ ico: 'cart',  label: 'MemeBay',   fn: () => this.openShop() });
     if (Game.isUnlocked('inventory')) apps.push({ ico: 'bag',   label: 'Loot',      fn: () => this.openInventory() });
     if (Game.isUnlocked('graveyard')) apps.push({ ico: 'grave', label: 'Graveyard', fn: () => this.openGraveyard() });
+    apps.push({ ico: 'door', label: 'Leave PC', fn: () => this.enterRoom() });
     apps.push({ ico: 'gear', label: 'Customize', fn: () => this.openCustomize() });
     apps.push({ ico: 'doc', label: 'README.txt', fn: () => this.openHelp() });
     return apps;
@@ -117,6 +127,14 @@ const Desktop = {
     const s = Game.state;
     U.qs('#tray-coins b').textContent = s.coins;
     U.qs('#tray-pop b').textContent = s.memes.length;
+    U.qs('#tray-day b').textContent = s.day || 1;
+    const mail = document.getElementById('tray-mail');
+    const n = (s.dms || []).length;
+    mail.classList.toggle('hidden', n === 0);
+    mail.classList.toggle('alert', n > 0);
+    mail.innerHTML = Icon.ico('mail', 16) + (n ? ` <b>${n}</b>` : '');
+    const roomDay = document.getElementById('room-day');
+    if (roomDay) roomDay.textContent = 'Day ' + (s.day || 1);
   },
 
   // playfield (monitor screen) dimensions
@@ -454,6 +472,7 @@ const Desktop = {
             <div class="stat-row" style="font-size:11px"><span class="s-name">${Icon.ico('star', 13)} XP</span>
               <div class="stat-bar sb-lck"><div style="width:${U.clamp(m.xp / xpNeed * 100, 0, 100)}%"></div></div>
               <span class="s-val" style="width:52px">${m.xp}/${xpNeed}</span></div>
+            ${this.energyHTML(m)}
           </div>
         </div>
         ${m.retired ? `<p style="font-size:11px;color:var(--gold);margin-top:8px">${Icon.ico('crown', 12)} Retired hero — survived an adventure. Now it breeds the next generation.</p>` : ''}
@@ -571,8 +590,11 @@ const Desktop = {
           const flag = m.retired ? `<span class="mm-flag">${Icon.ico('crown', 16)}</span>`
             : stage === 'baby' ? `<span class="mm-flag">${Icon.ico('egg', 16)}</span>`
             : stage === 'elder' ? `<span class="mm-flag">${Icon.ico('wilt', 16)}</span>` : '';
+          let epips = '';
+          if (!m.retired) { for (let i = 0; i < Game.MAX_STAGES; i++) epips += `<span class="e-pip${i < Game.energyLeft(m) ? ' on' : ''}"></span>`; }
           cell.innerHTML = `${flag}${Sprite.memeSVG(m, { size: 60 })}<span class="mm-name">${U.esc(m.name)}</span>
-            <span class="mm-sub">Lv${m.level} · Gen${m.gen}</span>`;
+            <span class="mm-sub">Lv${m.level} · Gen${m.gen}</span>
+            <span class="mm-energy">${m.retired ? Icon.ico('crown', 12) : epips}</span>`;
           cell.onclick = () => { SFX.play('select'); this.openMemeCard(m.id); };
           grid.appendChild(cell);
         }
@@ -1048,6 +1070,192 @@ const Desktop = {
   },
 
   /* ============================================================
+     3D ROOM — leave the PC to see your room (bed / desk / PC)
+     ============================================================ */
+  enterRoom() {
+    const rv = document.getElementById('room-view');
+    document.getElementById('start-menu').classList.add('hidden');
+    document.getElementById('room-day').textContent = 'Day ' + (Game.state.day || 1);
+    rv.classList.remove('hidden');
+    rv.classList.add('opening');
+    SFX.play('whoosh');
+    setTimeout(() => rv.classList.remove('opening'), 520);
+  },
+
+  exitRoom() {
+    const rv = document.getElementById('room-view');
+    rv.classList.add('closing');
+    SFX.play('close');
+    setTimeout(() => { rv.classList.add('hidden'); rv.classList.remove('closing'); }, 340);
+  },
+
+  sleepInBed() {
+    const rv = document.getElementById('room-view');
+    if (rv.classList.contains('sleeping')) return;
+    rv.classList.add('sleeping');
+    SFX.play('close');
+    setTimeout(() => {
+      const res = Game.sleep();
+      document.getElementById('room-day').textContent = 'Day ' + res.day;
+      this.updateTray();
+      SFX.play('birth');
+      rv.classList.remove('sleeping');
+      const dms = (Game.state.dms || []).length;
+      Modal.show({
+        title: `${Icon.ico('moon', 22)} Day ${res.day}`,
+        bodyHTML: `<div style="text-align:center">
+          <p style="font-size:15px">You slept like a rock. A new day dawns.</p>
+          <p style="font-size:12px;opacity:.78;margin-top:8px">Eggs finished incubating · breeders are rested · found <b>+${res.coins}</b> coins${dms ? ` · <b>${dms}</b> adoption message${dms > 1 ? 's' : ''} waiting!` : ''}</p>
+        </div>`,
+        actions: [{ label: 'Rise & grind', cls: 'fun' }],
+      });
+    }, 1350);
+  },
+
+  /* ============================================================
+     MESSAGES — online adopters want your retired memes ($$$)
+     ============================================================ */
+  openDMs() {
+    this.openWindow('dms', {
+      title: 'Messages', ico: 'mail', w: 400,
+      build: body => {
+        const dms = Game.state.dms || [];
+        if (!dms.length) {
+          body.innerHTML = `<p style="font-size:13px;opacity:.72;text-align:center;padding:16px 8px">No new messages.<br>
+            <span style="font-size:11px">Retired memes attract online adopters — check back after a fight or a good night's sleep.</span></p>`;
+          return;
+        }
+        body.innerHTML = `<p style="font-size:12px;opacity:.78;margin-bottom:8px">People online want to adopt your <b>retired</b> memes. Accept for <b>free coins</b> — the meme moves out for good.</p>`;
+        const list = U.el('div', 'dm-list');
+        for (const dm of dms.slice()) {
+          const m = Game.getMeme(dm.memeId);
+          const row = U.el('div', 'dm-row');
+          row.innerHTML = `
+            <div class="dm-av">${m ? Sprite.memeSVG(m, { size: 52 }) : Icon.ico('roster', 40)}</div>
+            <div class="dm-body">
+              <div class="dm-from">${Icon.ico('mail', 12)} <b>${U.esc(dm.from)}</b></div>
+              <div class="dm-text">${U.esc(dm.line)}</div>
+              <div class="dm-offer">${Icon.ico('coin', 13)} offers <b>${dm.coins}</b> for <b>${U.esc(dm.memeName)}</b></div>
+              <div class="dm-actions">
+                <button class="chunky-btn small good" data-act="accept">Accept</button>
+                <button class="chunky-btn small" data-act="decline">Ignore</button>
+              </div>
+            </div>`;
+          row.querySelector('[data-act=accept]').onclick = () => {
+            const paid = Game.acceptAdoption(dm);
+            SFX.play('coin'); toast(`<b>${U.esc(dm.from)}</b> adopted <b>${U.esc(dm.memeName)}</b>! +${paid} coins`, 3200, 'coin');
+            this.refreshWindow('dms'); this.refreshAllWindows(); this.refreshWalkers(); this.updateTray();
+          };
+          row.querySelector('[data-act=decline]').onclick = () => {
+            Game.declineAdoption(dm); SFX.play('click'); this.refreshWindow('dms'); this.updateTray();
+          };
+          list.appendChild(row);
+        }
+        body.appendChild(list);
+      },
+    });
+  },
+
+  /* ============================================================
+     SKILL CARD PACKS — open after clearing a stage
+     ============================================================ */
+  packState: null,
+
+  drainPacks() {
+    if (!Game.state.pendingPacks || !Game.state.pendingPacks.length) return;
+    const cards = Game.state.pendingPacks.shift();
+    Game.save();
+    this.packState = { cards, assigned: cards.map(() => null) };
+    this.openPack();
+  },
+
+  openPack() {
+    this.openWindow('pack', {
+      title: 'Skill Card Pack', ico: 'cards', w: 470, cls: 'w-pack',
+      build: body => this.renderPack(body),
+    });
+  },
+
+  renderPack(body) {
+    const ps = this.packState;
+    if (!ps) { this.closeWindow('pack'); return; }
+    body.innerHTML = `<p style="font-size:12px;opacity:.82;text-align:center;margin-bottom:10px">
+      A pack of <b>4 skill cards</b>! Assign each to a meme. <b>Skills</b> add combat moves; commons are <b>stat-ups</b> or <b>passives</b>.</p>`;
+    const grid = U.el('div', 'card-grid');
+    ps.cards.forEach((c, i) => {
+      const rare = c.rarity === 'rare';
+      const cell = U.el('div', 'skill-card ' + (rare ? 'rare' : 'common') + (ps.assigned[i] ? ' used' : ''));
+      cell.innerHTML = `
+        <div class="sc-kind">${c.kind === 'ability' ? 'SKILL' : c.kind === 'trait' ? 'PASSIVE' : 'STAT UP'}</div>
+        <div class="sc-ico">${Icon.ico(Game.cardIcon(c), 42)}</div>
+        <div class="sc-title">${U.esc(Game.cardTitle(c))}</div>
+        <div class="sc-desc">${U.esc(Game.cardDesc(c))}</div>
+        ${ps.assigned[i]
+          ? `<div class="sc-assigned">${Icon.ico('crown', 12)} ${U.esc(ps.assigned[i])}</div>`
+          : `<button class="chunky-btn small fun sc-assign">Assign</button>`}`;
+      if (!ps.assigned[i]) cell.querySelector('.sc-assign').onclick = () => this.assignCard(i);
+      grid.appendChild(cell);
+    });
+    body.appendChild(grid);
+    const foot = U.el('div', 'pack-foot');
+    const done = U.el('button', 'chunky-btn good', ps.assigned.every(Boolean) ? 'Done' : 'Done (keep rest unused)');
+    done.onclick = () => {
+      this.closeWindow('pack'); this.packState = null; Game.save();
+      this.refreshAllWindows(); this.refreshWalkers();
+      setTimeout(() => this.drainPacks(), 220);   // open the next pack if any
+    };
+    foot.appendChild(done);
+    body.appendChild(foot);
+  },
+
+  assignCard(i) {
+    const ps = this.packState;
+    if (!ps || ps.assigned[i]) return;
+    const card = ps.cards[i];
+    const pick = U.el('div');
+    const targets = Game.state.memes;
+    if (!targets.length) { pick.innerHTML = '<p style="text-align:center">No memes to teach!</p>'; }
+    else {
+      pick.innerHTML = `<p style="font-size:12px;opacity:.75;margin-bottom:6px">Give <b>${U.esc(Game.cardTitle(card))}</b> to which meme?</p>`;
+      const grid = U.el('div', 'squad-grid');
+      for (const m of targets) {
+        const cell = U.el('div', 'mini-meme');
+        const known = card.kind === 'ability' && m.learned && m.learned.includes(card.id);
+        cell.innerHTML = `${Sprite.memeSVG(m, { size: 54 })}<span class="mm-name">${U.esc(m.name)}</span>
+          <span class="mm-sub">Lv${m.level} · ${m.learned ? m.learned.length : 0}/${Genetics.MAX_ABILITIES} skills</span>`;
+        if (known) cell.style.opacity = '.5';
+        cell.onclick = () => {
+          const res = Game.applyCard(card, m);
+          if (res === true) {
+            ps.assigned[i] = m.name;
+            SFX.play('levelup');
+            toast(`<b>${U.esc(m.name)}</b> got <b>${U.esc(Game.cardTitle(card))}</b>!`, 3000, Game.cardIcon(card));
+            Game.save(); Modal.hide(); this.refreshWindow('pack');
+          } else {
+            SFX.play('error'); toast(typeof res === 'string' ? res : 'Cannot apply that card here.', 2600, 'warning');
+          }
+        };
+        grid.appendChild(cell);
+      }
+      pick.appendChild(grid);
+    }
+    Modal.show({
+      title: `${Icon.ico(Game.cardIcon(card), 20)} ${U.esc(Game.cardTitle(card))}`,
+      bodyNode: pick,
+      actions: [{ label: 'Cancel' }],
+    });
+  },
+
+  /* ---- energy (fights left before retirement) ---- */
+  energyHTML(meme) {
+    if (meme.retired) return `<div class="energy-row retired">${Icon.ico('crown', 12)} Retired — out of energy (breed only)</div>`;
+    const left = Game.energyLeft(meme), max = Game.MAX_STAGES;
+    let pips = '';
+    for (let i = 0; i < max; i++) pips += `<span class="e-pip${i < left ? ' on' : ''}"></span>`;
+    return `<div class="energy-row"><span class="e-lbl">${Icon.ico('energycan', 12)} ENERGY</span><span class="e-pips">${pips}</span><span class="e-num">${left}/${max}</span></div>`;
+  },
+
+  /* ============================================================
      HELP / README
      ============================================================ */
   openHelp() {
@@ -1056,11 +1264,12 @@ const Desktop = {
       build: body => {
         body.innerHTML = `
         <div style="font-size:13px;line-height:1.65">
-          <p><b>MEME-GENICS</b> — your desktop is alive with memes, and the viruses want it. It plays like Mewgenics: breed a bloodline, send them to fight, lose them, breed better ones.</p>
-          <p style="margin-top:8px"><b>THE LOOP:</b> pair two memes in Breeder2000 &rarr; <b>End Day</b> (a baby hatches overnight, memes age, a stray may show up) &rarr; send up to 4 fighters into a hunt.</p>
-          <p style="margin-top:8px"><b>RETIREMENT:</b> any meme that <i>survives</i> a hunt is crowned and <b>retires</b> — it can never fight again, only breed. So you must keep breeding fresh fighters. This is the heart of the game.</p>
-          <p style="margin-top:8px"><b>BREEDING:</b> kids inherit one allele per gene from each parent — the dominant one shows. Stats blend with a lucky drift, traits pass down, and mutations sneak in rare genes (RAINBOW! LASER EYES!). Related parents = a <b>Reposted</b> baby. Gross.</p>
-          <p style="margin-top:8px"><b>BATTLES:</b> a cinematic auto-battler. Your memes and the viruses fight automatically by ZOOM order — you jump in with skill: <b>time your STRIKE</b> to hit harder, <b>PARRY</b> incoming attacks, and <b>MASH</b> your type's special. Higher stats + clean timing = wins. <b>Memes that die in battle are DEAD</b> — unless you necropost them, or burn Copium mid-fight.</p>
+          <p><b>MEME-GENICS</b> — your desktop is alive with memes, and the viruses want it. It plays like Mewgenics: breed a bloodline, send them to fight, retire them, breed better ones.</p>
+          <p style="margin-top:8px"><b>THE LOOP:</b> pair two memes in Breeder2000 (an egg hatches) &rarr; insert the infected flash drive to run a stage &rarr; clear it, open a <b>Skill Card Pack</b> &rarr; teach cards to your memes. Click <b>Leave PC</b> to visit your room and sleep in the <b>bed</b> to skip a day (eggs hatch, breeders rest).</p>
+          <p style="margin-top:8px"><b>SKILLS:</b> every meme starts with only a <b>Basic Strike</b>. Clearing a stage drops a pack of <b>4 cards</b> — some are new <b>combat skills</b>, others are <b>stat-ups</b> or <b>passives</b> (commons). Assign each card to a meme. Kids inherit a couple of their parents' learned skills.</p>
+          <p style="margin-top:8px"><b>ENERGY &amp; RETIREMENT:</b> each meme has <b>5 stages of energy</b>. Spend it all and the meme <b>retires</b> — it can only breed now, never fight. Retired memes attract <b>online adopters</b> who DM you to buy them for <b>free coins</b> (check Messages). Keep breeding fresh fighters — this is the heart of the game.</p>
+          <p style="margin-top:8px"><b>BREEDING:</b> kids inherit one allele per gene from each parent — the dominant one shows. Body shapes, sizes, colors, stats, traits and class all pass down, and mutations sneak in rare genes (RAINBOW! ABSOLUTE UNIT!). Related parents = a <b>Reposted</b> baby. Gross.</p>
+          <p style="margin-top:8px"><b>BATTLES:</b> a cinematic auto-battler. Your memes and the viruses leap and clash automatically by ZOOM order — you jump in with skill via <b>20 different mini-games</b>: time a STRIKE, PARRY an attack, mash, aim, trace, keep the beat and more. Nail them for bonus damage and perfect parries. <b>Memes that die in battle are DEAD</b> — unless you necropost them, or burn Copium mid-fight.</p>
           <p style="margin-top:8px"><b>UNLOCKS:</b> you start with just breeding and the first hunt. MemeBay, your Loot stash, the Graveyard and the endless Cloud open up as you play.</p>
           <p style="margin-top:8px"><b>GOAL:</b> climb the mission list, delete the SPAM KING, then flex on the endless Cloud with a genetically perfected super-bloodline.</p>
           <p style="margin-top:8px;opacity:.6;font-size:11px">A loving parody of Mewgenics-style breeding tactics. No cats were harmed. Several viruses were.</p>
@@ -1082,8 +1291,8 @@ const Desktop = {
           <div style="width:96px">${Sprite.memeSVG(Game.state.memes[1], { size: 96 })}</div>
         </div>
         <p style="font-size:13px">Pet your memes. Breed dank bloodlines. Delete evil viruses.<br>
-        Fighters <b>retire</b> after one hunt — so keep the bloodline going. Memes don't live forever; their <b>genes</b> do.</p>
-        <p style="font-size:12px;opacity:.6;margin-top:6px">(psst: read README.txt on the desktop for the full manual)</p>
+        Memes start with just a <b>Basic Strike</b> — clear a stage to open a <b>Skill Card Pack</b> and teach them new moves. Each meme has <b>5 stages of energy</b>, then it <b>retires</b> to breed the next generation.</p>
+        <p style="font-size:12px;opacity:.6;margin-top:6px">(psst: click <b>Leave PC</b> to see your room and sleep in the bed to skip a day)</p>
       </div>`,
       actions: [{ label: "LET'S GO", cls: 'fun', fn: () => { Game.state.seenIntro = true; Game.save(); SFX.startMusic(); } }],
     });

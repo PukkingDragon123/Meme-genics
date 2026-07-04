@@ -17,12 +17,24 @@ DATA.GENES = {
   body: {
     label: 'Body',
     alleles: {
-      round:  { dom: 6, label: 'Round Boi' },
-      blob:   { dom: 5, label: 'Blob' },
-      bean:   { dom: 4, label: 'Bean' },
-      square: { dom: 3, label: 'Square' },
-      tall:   { dom: 2, label: 'Longboi' },
+      round:  { dom: 8, label: 'Round Boi' },
+      blob:   { dom: 7, label: 'Blob' },
+      bean:   { dom: 6, label: 'Bean' },
+      square: { dom: 5, label: 'Square' },
+      egg:    { dom: 4, label: 'Egg-Shaped' },
+      peanut: { dom: 3, label: 'Peanut' },
+      tall:   { dom: 3, label: 'Longboi' },
+      tri:    { dom: 2, label: 'Triangle' },
       star:   { dom: 1, label: 'Star Child', rare: true },
+    }
+  },
+  size: {
+    label: 'Size',
+    alleles: {
+      normal: { dom: 6, label: 'Regular', mul: 1.0 },
+      small:  { dom: 5, label: 'Smol',    mul: 0.8 },
+      large:  { dom: 4, label: 'Chonky',  mul: 1.22 },
+      huge:   { dom: 1, label: 'ABSOLUTE UNIT', rare: true, mul: 1.5 },
     }
   },
   hue: {
@@ -367,6 +379,36 @@ DATA.WANDERER_INTROS = [
   'This meme fell out of a zip file. It seems friendly?',
   'A meme was found hiding in your screenshots folder!',
 ];
+
+/* ---------------- online adopters (DM for retired memes) ---------------- */
+DATA.ADOPTER_NAMES = ['xX_Sn1per_Xx', 'meme_lord420', 'QuietStorm', 'pixelmom', 'n00b_slayer',
+  'GrandmaGamer', 'vibesonly', '404_notfound', 'sushiroll99', 'bigchungusfan', 'certified_dank', 'lurkerbob'];
+DATA.ADOPT_LINES = [
+  'yo can I adopt {n}?? my lil bro LOVES that meme',
+  'ur {n} is legendary bro, I\'ll paypal you rn',
+  'pls let me give {n} a good home (money ready!!)',
+  'saw {n} on the timeline, gotta have it. name a price',
+  'adopting {n} for the collection. cash waiting',
+  'my grandma wants to adopt {n} fr fr',
+];
+
+/* ============================================================
+   SKILL CARDS — a pack of 4 drops after each cleared stage.
+   commons = stat / passive; rare = a new ability.
+   ============================================================ */
+DATA.rollCard = function (tier) {
+  const r = Math.random() - (tier || 0) * 0.03;   // higher tiers skew rarer
+  if (r < 0.40) {
+    const s = U.pick(['hp', 'atk', 'int', 'spd', 'lck']);
+    const amt = s === 'hp' ? U.randInt(6, 12) : U.randInt(1, 3);
+    return { kind: 'stat', stat: s, amt, rarity: 'common' };
+  } else if (r < 0.66) {
+    return { kind: 'trait', trait: U.pick(DATA.GOOD_TRAITS), rarity: 'common' };
+  }
+  return { kind: 'ability', id: U.pick(DATA.LEARNABLE), rarity: 'rare' };
+};
+DATA.STAT_ICO = { hp: 'heart', atk: 'fist', int: 'brain', spd: 'bolt', lck: 'clover' };
+DATA.STAT_NAME = { hp: 'MAX HP', atk: 'BONK', int: 'BRAIN', spd: 'ZOOM', lck: 'LUCK' };
 
 /* ============================================================
    POWER — the mobile-style rating shown everywhere.

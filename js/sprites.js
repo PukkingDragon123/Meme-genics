@@ -268,6 +268,66 @@ Object.assign(ICONS, {
     '..........',
     '..........',
   ]},
+  cards: { p: { c: '#f6f0e0', y: '#f0b541', b: '#5b7fd0' }, g: [
+    '.oooooooo.',
+    '.occccccо.'.replace('о', 'o'),
+    '.occyycco.',
+    '.ocyyyyco.',
+    '.oyyyyyyo.',
+    '.ocyyyyco.',
+    '.ocyccyco.',
+    '.occccccо.'.replace('о', 'o'),
+    '.oooooooo.',
+    '..........',
+  ]},
+  bed: { p: { p: '#e9e2cf', b: '#5b7fd0', w: '#8a7a5a' }, g: [
+    '..........',
+    '..........',
+    'oo........',
+    'oppooooooo',
+    'oppbbbbbbo',
+    'obbbbbbbbo',
+    'obbbbbbbbo',
+    'oooooooooo',
+    'ow......wo',
+    'ow......wo',
+  ]},
+  door: { p: { w: '#9a7a4e', h: '#f0b541' }, g: [
+    '.oooooooo.',
+    '.owwwwwwo.',
+    '.owwwwwwo.',
+    '.owwwwwwo.',
+    '.owwwwhwo.',
+    '.owwwwhwo.',
+    '.owwwwwwo.',
+    '.owwwwwwo.',
+    '.owwwwwwo.',
+    '.oooooooo.',
+  ]},
+  moon: { p: { y: '#f0e2a0', d: '#d8c877' }, g: [
+    '...oooo...',
+    '..oyydoo..',
+    '.oyydo....',
+    '.oyyo.....',
+    'oyydo.....',
+    'oyydo.....',
+    '.oyyo.....',
+    '.oyydo....',
+    '..oyydoo..',
+    '...oooo...',
+  ]},
+  pc: { p: { s: '#3a3450', g: '#68ac8f' }, g: [
+    'oooooooooo',
+    'osgsgsgsgo',
+    'osgggggggo',
+    'osgggggggo',
+    'osgggggggo',
+    'oooooooooo',
+    '...oooo...',
+    '...oooo...',
+    '.oooooooo.',
+    '.oooooooo.',
+  ]},
   propeller: { p: { r: '#e6482e', b: '#4fc4e8', y: '#ffd93d' }, g: [
     '.oo....oo.',
     'orro..obbo',
@@ -883,24 +943,26 @@ const Sprite = {
   memeSVG(meme, opts = {}) {
     const stage = opts.stage || (typeof Genetics !== 'undefined' ? Genetics.stage(meme) : 'adult');
     const zombie = meme.traits && meme.traits.includes('zombie');
+    const old = !!meme.retired && opts.old !== false;   // retired memes grow old & bearded
     const equip = opts.equip !== false ? (meme.equip || {}) : {};
-    const key = JSON.stringify([meme.pheno, stage, zombie, equip.hat, equip.held, meme.id.slice(-4)]);
+    const key = JSON.stringify([meme.pheno, stage, zombie, old, equip.hat, equip.held, meme.id.slice(-4)]);
     let url = this._cache.get(key);
     if (!url) {
-      url = this._render(meme, stage, zombie, equip);
+      url = this._render(meme, stage, zombie, equip, old);
       this._cache.set(key, url);
       if (this._cache.size > 400) this._cache.delete(this._cache.keys().next().value);
     }
-    const size = opts.size || 72;
+    const mul = (opts.scaleSize === false || typeof Genetics === 'undefined' || !Genetics.sizeMul) ? 1 : Genetics.sizeMul(meme);
+    const size = Math.round((opts.size || 72) * mul);
     return `<img class="px meme-px" src="${url}" style="width:${size}px" alt="" draggable="false">`;
   },
 
-  _render(meme, stage, zombie, equip) {
+  _render(meme, stage, zombie, equip, old) {
     const p = meme.pheno;
     if (DATA.GENES.face.alleles[p.face] && DATA.GENES.face.alleles[p.face].full) {
-      return this._renderFull(p, stage, zombie, equip);
+      return this._renderFull(p, stage, zombie, equip, old);
     }
-    const hue = DATA.GENES.hue.alleles[p.hue];
+    const hue = DATA.GENES.hue.alleles[p.hue] || DATA.GENES.hue.alleles.gold;
     const W = this.W, H = this.H;
     const px = new Array(W * H).fill(null);   // color strings
     const body = new Set();                    // body-mask indices
@@ -941,6 +1003,26 @@ const Sprite = {
           }
           bodyTop = 9; break;
         case 'tall': ellipse(11.5, 14.5, 5.8, 9, addBody); bodyTop = 6; break;
+        case 'egg':
+          // narrow at the top, wide at the base — a proper egg
+          for (let y = 8; y <= 22; y++) {
+            const t = (y - 8) / 14, rx = 3.2 + t * 4.8;
+            ellipse(11.5, y, rx, 0.75, addBody);
+          }
+          bodyTop = 8; break;
+        case 'peanut':
+          // two lobes with a pinched waist (figure-8)
+          ellipse(11.5, 12, 5.8, 4.4, addBody);
+          ellipse(11.5, 18.5, 6.4, 4.8, addBody);
+          ellipse(11.5, 15.4, 4, 1.5, addBody);
+          bodyTop = 7; break;
+        case 'tri':
+          // pointed top, wide base
+          for (let y = 8; y <= 22; y++) {
+            const t = (y - 8) / 14, half = 1 + t * 7.6;
+            for (let x = Math.round(11.5 - half); x <= Math.round(11.5 + half); x++) addBody(x, y);
+          }
+          bodyTop = 8; break;
         case 'star': {
           // chunky 5-point star
           const S = [
@@ -1160,6 +1242,29 @@ const Sprite = {
       set(7, mouthY, '#e8e4f2'); set(6, mouthY + 1, '#e8e4f2');
       set(16, mouthY, '#e8e4f2'); set(17, mouthY + 1, '#e8e4f2');
     }
+
+    /* ---- 10b. retired = wise, old & bearded ---- */
+    if (old) {
+      const GB = '#e2dfec', GD = '#b4b0c6';
+      // age wash — desaturate the body toward gray
+      for (const i of body) { if (px[i] && px[i] !== I) px[i] = this.mix(px[i], '#b9b6c8', 0.24); }
+      // bushy elder brows
+      for (let x = lx - 1; x <= lx + 2; x++) set(x, eyeY - 2, GB);
+      for (let x = rx - 1; x <= rx + 2; x++) set(x, eyeY - 2, GB);
+      // fluffy grey beard hanging off the chin
+      const beard = [
+        [7, mouthY + 1], [8, mouthY + 1], [15, mouthY + 1], [16, mouthY + 1],
+        [7, mouthY + 2], [8, mouthY + 2], [9, mouthY + 2], [14, mouthY + 2], [15, mouthY + 2], [16, mouthY + 2],
+        [8, mouthY + 3], [9, mouthY + 3], [10, mouthY + 3], [11, mouthY + 3], [12, mouthY + 3], [13, mouthY + 3], [14, mouthY + 3], [15, mouthY + 3],
+        [9, mouthY + 4], [10, mouthY + 4], [11, mouthY + 4], [12, mouthY + 4], [13, mouthY + 4], [14, mouthY + 4],
+        [10, mouthY + 5], [11, mouthY + 5], [12, mouthY + 5], [13, mouthY + 5],
+        [11, mouthY + 6], [12, mouthY + 6],
+      ];
+      for (const [x, y] of beard) onBody(x, y, (x + y) % 2 ? GB : GD);
+      // white mustache tuft over the mouth
+      for (let x = 9; x <= 14; x++) set(x, mouthY, GD);
+    }
+
     if (zombie) {
       for (let i = 0; i < W * H; i++) {
         if (px[i] && px[i] !== I && body.has(i)) px[i] = this.mix(px[i].startsWith('#') ? px[i] : hue.c2, '#5fae5f', 0.4);
@@ -1201,7 +1306,7 @@ const Sprite = {
   },
 
   // full-body brainrot sprites (nyan, tung, shark, capp, croco)
-  _renderFull(p, stage, zombie, equip) {
+  _renderFull(p, stage, zombie, equip, old) {
     const art = MEME_FULL[p.face] || MEME_FULL.nyan;
     const cv = document.createElement('canvas');
     cv.width = this.W; cv.height = this.H;
@@ -1211,7 +1316,20 @@ const Sprite = {
     const oy = Math.max(0, Math.floor((this.H - art.g.length) / 2) + 1);
     Pixel.drawGridOn(ctx, art.g, art.p, ox, oy);
 
+    if (old) {
+      // grey beard tuft near the base
+      ctx.fillStyle = '#d8d5e2';
+      const cx = ox + Math.floor(w / 2), by = oy + art.g.length - 6;
+      for (const [dx, dy] of [[-2, 0], [-1, 0], [0, 0], [1, 0], [-2, 1], [-1, 1], [0, 1], [1, 1], [-1, 2], [0, 2]]) ctx.fillRect(cx + dx, by + dy, 1, 1);
+    }
+
     Pixel.outline(ctx, this.W, this.H);
+    if (old) {
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.fillStyle = 'rgba(150,146,170,.28)';
+      ctx.fillRect(0, 0, this.W, this.H);
+      ctx.globalCompositeOperation = 'source-over';
+    }
     if (zombie) {
       ctx.globalCompositeOperation = 'source-atop';
       ctx.fillStyle = 'rgba(95,174,95,.32)';

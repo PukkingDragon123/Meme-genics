@@ -26,28 +26,38 @@ open index.html
 
 1. **Breed** — fuse two adults in `Breeder2000.exe`. Fusing lays an **egg that incubates for a few
    seconds** before it hatches, and the parents then rest on a **breeding cooldown**. Kids inherit
-   one allele per gene from each parent (dominant shows), a parent's **class**, abilities, traits,
-   and can mutate rare genes. **Breeding for stronger stats is the whole strategy.**
+   one allele per gene from each parent (dominant shows) — **body shape, size**, color, class, a
+   couple of learned skills, traits — and can mutate rare genes. **Breeding for stronger stats is
+   the whole strategy.**
 2. **Grow** — babies grow into fighters after their first battle (or a little time / a few pets).
 3. **Fight** — pick a stage on the **map**, choose up to 4 memes, and **insert the infected flash
    drive** to begin.
-4. **Retire** — any meme that survives a fight is crowned and **retires** (breed only), so you must
-   keep breeding fresh fighters. Fallen memes are permanently dead (necropost or Copium excepted).
+4. **Unlock skills** — clearing a stage drops a **Skill Card Pack** (4 cards): new combat skills,
+   or common **stat-ups / passives**. Assign each to a meme. Memes start with only a Basic Strike.
+5. **Retire** — every meme has **5 stages of energy** (shown as a bar). Spend it all and the meme
+   **retires** (breed only), so you must keep breeding fresh fighters. Retired memes attract
+   **online adopters** who DM you to buy them for **free coins**. Fallen memes are permanently dead
+   (necropost or Copium excepted).
 
-There's no calendar — you play at your own pace, breeding and fighting whenever you like.
+**Leave the PC** to see your **3D room** — click the **bed** to sleep and skip a day (eggs finish,
+breeders rest), or the **PC** to get back to work. A **day counter** ticks in the taskbar.
 
-## Combat — cinematic auto-battler + skill
+## Combat — cinematic auto-battler + 20 skill mini-games
 
-Fights play out automatically by **ZOOM** (speed) order — memes **leap** across the arena to clash,
-the camera zooms and pans to the action, and hits kick up dust, rings and screen shake. A live
-**team tracker** shows your memes' health the whole time. You jump in with skill:
+Fights play out automatically by **ZOOM** (speed) order — memes **leap** across themed **zone**
+battlefields to clash, the camera zooms and pans to the action, and hits kick up dust, rings and
+screen shake. A live **team tracker** shows your memes' health the whole time. You jump in with
+skill through **20 distinct mini-games** — every attack and parry feels different:
 
-- **STRIKE** — a timing bar on every attack. Nail the sweet spot for bonus damage and crits.
-- **PARRY** — tap in the window when a virus attacks to block (a *perfect* parry reflects damage).
-- **SPECIAL** — each meme type has a signature move; some are a **MASH** for extra hits.
+- **STRIKE / TRACER / QUICKDRAW** — timing games: stop the marker, catch the bolt, wait then strike.
+- **MASH / OVERLOAD / FLURRY** — button-hammering: fill the bar, out-mash the decay, alternate keys.
+- **BULLSEYE / PULSE / COMBO / ZEN** — shrinking-ring timing for hits and heals.
+- **REACTION / SEQUENCE / RHYTHM** — counters, memorised input chains, tap-on-the-beat.
+- **AIM / DODGE / WHACK / SPINNER / STOPWATCH / CATCH / BALANCE** — click, weave, purge and more.
 
-Higher stats + clean timing = wins. Do nothing and it still auto-resolves — but skill matters.
-Each stage shows **your power vs enemy power** and its **rewards** before you commit.
+Nail them for bonus damage and *perfect* parries (which reflect). Do nothing and it still
+auto-resolves — but skill matters. Each stage shows **your power vs enemy power** and its
+**rewards** before you commit.
 
 ## The memes
 
