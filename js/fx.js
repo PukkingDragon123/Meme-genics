@@ -1,6 +1,7 @@
 /* ============================================================
    MEME-GENICS — fx.js
-   Canvas particles + floating combat text. Pure juice.
+   Canvas pixel particles + floating combat text. Pure juice,
+   no emoji — chunky squares in the Balatro palette.
    ============================================================ */
 
 const FX = {
@@ -23,6 +24,7 @@ const FX = {
   step() {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.imageSmoothingEnabled = false;
     const parts = this.parts;
     for (let i = parts.length - 1; i >= 0; i--) {
       const p = parts[i];
@@ -31,35 +33,24 @@ const FX = {
       p.rot += p.vrot;
       p.life--;
       if (p.life <= 0) { parts.splice(i, 1); continue; }
-      const a = Math.min(1, p.life / 20);
+      const a = Math.min(1, p.life / 16);
       ctx.save();
       ctx.globalAlpha = a;
-      ctx.translate(p.x, p.y);
+      ctx.translate(Math.round(p.x), Math.round(p.y));
       ctx.rotate(p.rot);
-      if (p.emoji) {
-        ctx.font = `${p.size}px serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(p.emoji, 0, 0);
-      } else if (p.shape === 'rect') {
-        ctx.fillStyle = p.color;
-        ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
-      } else {
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      ctx.fillStyle = p.color;
+      const s = Math.round(p.size);
+      if (p.shape === 'bar') ctx.fillRect(-s, -Math.round(s / 2), s * 2, s);
+      else ctx.fillRect(-Math.round(s / 2), -Math.round(s / 2), s, s);   // chunky pixel square
       ctx.restore();
     }
   },
 
   spawn(x, y, opts = {}) {
     const n = opts.count || 12;
+    const colors = opts.colors || ['#ffffff'];
     for (let i = 0; i < n; i++) {
-      const ang = opts.angle !== undefined
-        ? opts.angle + U.rand(-0.5, 0.5)
-        : U.rand(0, Math.PI * 2);
+      const ang = opts.angle !== undefined ? opts.angle + U.rand(-0.5, 0.5) : U.rand(0, Math.PI * 2);
       const spd = U.rand(opts.minSpd ?? 2, opts.maxSpd ?? 7);
       this.parts.push({
         x, y,
@@ -68,48 +59,46 @@ const FX = {
         grav: opts.grav ?? 0.25,
         rot: U.rand(0, Math.PI * 2),
         vrot: U.rand(-0.2, 0.2),
-        life: U.randInt(opts.lifeMin ?? 25, opts.lifeMax ?? 50),
-        size: U.rand(opts.sizeMin ?? 5, opts.sizeMax ?? 11),
-        color: opts.colors ? U.pick(opts.colors) : '#fff',
-        emoji: opts.emojis ? U.pick(opts.emojis) : null,
-        shape: opts.shape || 'circle',
+        life: U.randInt(opts.lifeMin ?? 22, opts.lifeMax ?? 46),
+        size: U.rand(opts.sizeMin ?? 4, opts.sizeMax ?? 9),
+        color: U.pick(colors),
+        shape: opts.shape || 'square',
       });
     }
     if (this.parts.length > 600) this.parts.splice(0, this.parts.length - 600);
   },
 
-  /* ---------- presets ---------- */
-  confetti(x, y, n = 26) {
-    this.spawn(x, y, { count: n, shape: 'rect', up: 4, maxSpd: 9, sizeMin: 6, sizeMax: 12, lifeMax: 70,
-      colors: ['#ff71ce', '#01cdfe', '#05ffa1', '#fffb96', '#b967ff', '#ff9e3d'] });
+  /* ---------- presets (palette-driven) ---------- */
+  confetti(x, y, n = 24) {
+    this.spawn(x, y, { count: n, shape: 'bar', up: 4, maxSpd: 9, sizeMin: 4, sizeMax: 8, lifeMax: 68,
+      colors: ['#fe5f55', '#009dff', '#4bc292', '#eac058', '#8867a5', '#ff9a00'] });
   },
   hearts(x, y, n = 7) {
-    this.spawn(x, y, { count: n, emojis: ['💖', '💕', '❤️'], up: 3.4, grav: 0.06, maxSpd: 2.5, sizeMin: 13, sizeMax: 22, lifeMax: 60 });
+    this.spawn(x, y, { count: n, colors: ['#fe5f55', '#ff8fa5', '#f3b958'], up: 3.2, grav: 0.05, maxSpd: 2.4, sizeMin: 5, sizeMax: 9, lifeMax: 55 });
   },
   hit(x, y, n = 12) {
-    this.spawn(x, y, { count: n, colors: ['#fff', '#fffb96', '#ff9e3d'], maxSpd: 8, sizeMin: 3, sizeMax: 8, lifeMax: 30 });
+    this.spawn(x, y, { count: n, colors: ['#ffffff', '#eac058', '#ff9a00'], maxSpd: 8, sizeMin: 3, sizeMax: 6, lifeMax: 28 });
   },
   boom(x, y) {
-    this.spawn(x, y, { count: 22, colors: ['#ff4d6d', '#ff9e3d', '#fffb96', '#fff'], maxSpd: 10, sizeMin: 5, sizeMax: 14, lifeMax: 40 });
-    this.spawn(x, y, { count: 5, emojis: ['💥', '⭐'], maxSpd: 5, sizeMin: 16, sizeMax: 26, lifeMax: 35 });
+    this.spawn(x, y, { count: 22, colors: ['#fe5f55', '#ff9a00', '#eac058', '#ffffff'], maxSpd: 10, sizeMin: 4, sizeMax: 9, lifeMax: 38 });
   },
   heal(x, y) {
-    this.spawn(x, y, { count: 10, emojis: ['✨', '💚', '➕'], up: 3, grav: -0.02, maxSpd: 2, sizeMin: 12, sizeMax: 18, lifeMax: 55 });
+    this.spawn(x, y, { count: 12, colors: ['#4bc292', '#56a887', '#cdf3e4'], up: 3, grav: -0.02, maxSpd: 2, sizeMin: 4, sizeMax: 8, lifeMax: 52 });
   },
   poof(x, y) {
-    this.spawn(x, y, { count: 14, colors: ['#ddd', '#fff', '#bbb'], maxSpd: 4, up: 1, grav: -0.03, sizeMin: 8, sizeMax: 16, lifeMax: 40 });
+    this.spawn(x, y, { count: 14, colors: ['#bfc7d5', '#9aa2ab', '#ffffff'], maxSpd: 4, up: 1, grav: -0.03, sizeMin: 5, sizeMax: 10, lifeMax: 38 });
   },
   sparkle(x, y, n = 8) {
-    this.spawn(x, y, { count: n, emojis: ['✨', '⭐', '💫'], maxSpd: 3, sizeMin: 10, sizeMax: 16, lifeMax: 45 });
+    this.spawn(x, y, { count: n, colors: ['#eac058', '#ffffff', '#f3b958'], maxSpd: 3, sizeMin: 3, sizeMax: 6, lifeMax: 42 });
   },
   coins(x, y, n = 8) {
-    this.spawn(x, y, { count: n, emojis: ['🪙'], up: 5, maxSpd: 5, sizeMin: 14, sizeMax: 20, lifeMax: 55 });
+    this.spawn(x, y, { count: n, colors: ['#f3b958', '#eac058', '#c28024'], up: 5, maxSpd: 5, sizeMin: 4, sizeMax: 7, lifeMax: 52 });
   },
   skull(x, y) {
-    this.spawn(x, y, { count: 4, emojis: ['💀', '👻'], up: 3, grav: -0.04, maxSpd: 1.6, sizeMin: 16, sizeMax: 24, lifeMax: 60 });
+    this.spawn(x, y, { count: 8, colors: ['#bfc7d5', '#9aa2ab', '#5f7377'], up: 3, grav: -0.02, maxSpd: 1.8, sizeMin: 4, sizeMax: 8, lifeMax: 55 });
   },
   rainbow(x, y, n = 10) {
-    this.spawn(x, y, { count: n, colors: ['#ff71ce', '#fffb96', '#05ffa1', '#01cdfe', '#b967ff'], maxSpd: 4, grav: 0.05, sizeMin: 5, sizeMax: 9, lifeMax: 35 });
+    this.spawn(x, y, { count: n, colors: ['#fe5f55', '#eac058', '#4bc292', '#009dff', '#8867a5'], maxSpd: 4, grav: 0.05, sizeMin: 3, sizeMax: 7, lifeMax: 34 });
   },
 };
 

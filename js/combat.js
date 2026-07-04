@@ -1,14 +1,15 @@
 /* ============================================================
    MEME-GENICS — combat.js
-   Hex-grid turn-based tactics: memes vs viruses
+   Hex-grid turn-based tactics: memes vs viruses.
+   Pixel sprites, no emoji. Survivors retire (Mewgenics rule).
    ============================================================ */
 
 const Combat = {
   W: 9, H: 6,
   DIRS: [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]],
 
-  state: null,   // {mission, cells, units, round, queue, qi, loot, over, busy}
-  S: 46,         // hex half-width (synced with CSS)
+  state: null,
+  S: 46,
   HEXW: 92, ROWH: 79.6,
 
   /* ============================================================
@@ -32,22 +33,15 @@ const Combat = {
       loot: { coins: 0, stolen: 0 },
       over: false,
       busy: false,
-      mode: 'idle',          // idle | move | target
+      mode: 'idle',
       selAbility: null,
       deadMemes: [],
     };
     this.state = st;
 
-    document.getElementById('battle-title').textContent = `${mission.ico} ${mission.name.toUpperCase()}`;
-    const bg = document.getElementById('battle-bg');
-    bg.querySelectorAll('.bg-emoji').forEach(e => e.remove());
-    for (let i = 0; i < 8; i++) {
-      const e = U.el('div', 'bg-emoji', U.pick(mission.bg));
-      e.style.left = U.rand(2, 92) + '%';
-      e.style.top = U.rand(5, 85) + '%';
-      e.style.animationDelay = -U.rand(0, 8) + 's';
-      bg.appendChild(e);
-    }
+    document.getElementById('battle-title').innerHTML = `${Icon.ico(mission.ico, 22)} ${mission.name.toUpperCase()}`;
+    document.getElementById('battle-log').innerHTML = '';
+    document.getElementById('turn-order').innerHTML = '';
 
     this.buildField();
     this.placeUnits(squad, this.rosterFor(mission));
@@ -57,14 +51,13 @@ const Combat = {
     document.getElementById('btn-flee').onclick = () => this.confirmFlee();
     document.getElementById('btn-bag').onclick = () => this.openBag();
 
-    bigBanner(U.pick(['⚔️ GET MEMED!', '⚔️ IT\'S MEMEING TIME', '⚔️ DELETE THEM ALL']));
+    bigBanner(U.pick(['GET MEMED!', "IT'S MEMEING TIME", 'DELETE THEM ALL']));
     SFX.play('fanfare');
     setTimeout(() => this.nextRound(), 900);
   },
 
   rosterFor(mission) {
     if (!mission.endless) return mission.foes.slice();
-    // endless cloud: generated waves
     const wave = Game.state.cloudWave + 1;
     const pool = ['popup', 'worm', 'drone', 'blob', 'spyder', 'phish', 'ransom', 'trojan', 'adware', 'miner'];
     const count = Math.min(8, 3 + Math.floor(wave / 2));
@@ -101,14 +94,11 @@ const Combat = {
       el.style.top = y + 'px';
       el.dataset.k = `${q},${r}`;
       el.onclick = () => this.onHexClick(cell);
-      el.onmouseenter = () => this.onHexHover(cell);
       field.appendChild(el);
       cell.el = el;
       st.cells.set(`${q},${r}`, cell);
     }
 
-    // decorate: obstacles, hazards, coins (keep spawn columns clear)
-    const deco = this.state.mission.deco;
     const inner = [...st.cells.values()].filter(c => {
       const col = c.q + Math.floor(c.r / 2);
       return col >= 2 && col <= this.W - 3;
@@ -116,16 +106,15 @@ const Combat = {
     for (const c of U.shuffle(inner).slice(0, U.randInt(3, 5))) {
       c.blocked = true;
       c.el.classList.add('blocked');
-      c.el.appendChild(U.el('div', 'hex-deco', U.pick(deco)));
     }
     for (const c of U.shuffle(inner.filter(c => !c.blocked)).slice(0, U.randInt(1, 3))) {
       c.hazard = true;
       c.el.classList.add('hazard');
-      c.el.appendChild(U.el('div', 'hex-deco', '🔥'));
+      c.el.appendChild(U.el('div', 'hex-deco', Icon.ico('fire', 26)));
     }
     for (const c of U.shuffle(inner.filter(c => !c.blocked && !c.hazard)).slice(0, U.randInt(1, 3))) {
       c.coin = U.randInt(4, 10);
-      c.el.appendChild(U.el('div', 'hex-deco', '🪙'));
+      c.el.appendChild(U.el('div', 'hex-deco', Icon.ico('coin', 24)));
     }
   },
 
@@ -150,7 +139,6 @@ const Combat = {
      ============================================================ */
   placeUnits(squad, foeIds) {
     const st = this.state;
-    // memes on left columns, viruses on right
     const leftCells = U.shuffle([...st.cells.values()].filter(c => {
       const col = c.q + Math.floor(c.r / 2);
       return col <= 1 && !c.blocked && !c.hazard;
@@ -207,9 +195,7 @@ const Combat = {
     el.style.width = this.HEXW + 'px';
     el.style.height = this.HEXW + 'px';
     const body = U.el('div', 'u-body');
-    body.innerHTML = u.isMeme
-      ? Sprite.memeSVG(u.meme)
-      : Sprite.virusHTML(u.def);
+    body.innerHTML = u.isMeme ? Sprite.memeSVG(u.meme, { size: 58 }) : Sprite.virusHTML(u.def);
     el.appendChild(body);
     const hpbar = U.el('div', 'u-hp', '<div style="width:100%"></div>');
     el.appendChild(hpbar);
@@ -233,12 +219,12 @@ const Combat = {
   },
 
   unitTooltip(u) {
-    const sts = u.statuses.map(s => `${DATA.STATUS[s.id].ico} ${DATA.STATUS[s.id].name} (${s.turns})`).join(' ');
+    const sts = u.statuses.map(s => `${Icon.ico(DATA.STATUS[s.id].ico, 12)} ${DATA.STATUS[s.id].name} (${s.turns})`).join(' ');
     if (u.isMeme) {
-      return `<h4>${U.esc(u.name)}</h4><div class="tt-sub">❤️${u.hp}/${u.hpMax} 🔨${u.stats.atk} 🧠${u.stats.int} ⚡${u.stats.spd}</div>${sts ? `<div>${sts}</div>` : ''}`;
+      return `<h4>${U.esc(u.name)}</h4><div class="tt-sub">${Icon.ico('heart', 12)}${u.hp}/${u.hpMax} ${Icon.ico('fist', 12)}${u.stats.atk} ${Icon.ico('brain', 12)}${u.stats.int} ${Icon.ico('bolt', 12)}${u.stats.spd}</div>${sts ? `<div>${sts}</div>` : ''}`;
     }
-    return `<h4>${u.def.emoji} ${U.esc(u.name)}</h4>
-      <div class="tt-sub">❤️${u.hp}/${u.hpMax} · 🔨${u.stats.atk} · moves ${u.def.move}</div>
+    return `<h4>${U.esc(u.name)}</h4>
+      <div class="tt-sub">${Icon.ico('heart', 12)}${u.hp}/${u.hpMax} · ${Icon.ico('fist', 12)}${u.stats.atk} · moves ${u.def.move}</div>
       <div style="font-style:italic;font-size:11px;margin-top:2px">${U.esc(u.def.flavor)}</div>${sts ? `<div>${sts}</div>` : ''}`;
   },
 
@@ -289,7 +275,7 @@ const Combat = {
       .sort((a, b) => (b.stats.spd + U.rand(0, 0.9)) - (a.stats.spd + U.rand(0, 0.9)));
     st.qi = -1;
     this.renderTurnOrderBar();
-    if (st.round > 1) this.log(`— Round ${st.round} —`, true);
+    if (st.round > 1) this.log(`Round ${st.round}`, true);
     this.nextTurn();
   },
 
@@ -307,13 +293,11 @@ const Combat = {
     u.moved = false; u.acted = false; u.bonusMove = 0;
     this.renderTurnOrderBar();
 
-    // start-of-turn effects
     st.busy = true;
     const skip = await this.tickTurnStart(u);
     if (st.over) return;
     if (skip || u.hp <= 0) { await U.wait(300); st.busy = false; this.nextTurn(); return; }
 
-    // cooldowns tick
     for (const k of Object.keys(u.cds)) if (u.cds[k] > 0) u.cds[k]--;
 
     const confused = u.statuses.some(s => s.id === 'confuse');
@@ -329,58 +313,51 @@ const Combat = {
       st.busy = false;
       this.nextTurn();
     } else {
-      // player meme turn
       st.busy = false;
       this.renderUnitCard(u);
       this.autoSelectAbility(u);
       this.showMoveRange(u);
       const c = centerOf(u.el);
-      if (U.chance(0.25)) floatText(c.x, c.y - 60, U.pick(DATA.BATTLE_CRIES), { color: '#fffb96', size: 16 });
+      if (U.chance(0.25)) floatText(c.x, c.y - 60, U.pick(DATA.BATTLE_CRIES), { color: '#eac058', size: 16 });
     }
   },
 
   async tickTurnStart(u) {
     let skip = false;
     const c = () => centerOf(u.el);
-    // dots
     for (const s of u.statuses) {
       if (s.id === 'burn' && !(u.isMeme && u.meme.traits.includes('zombie'))) {
-        await this.dealRaw(u, 3, '🔥');
+        await this.dealRaw(u, 3, { color: '#ff9a00' });
       } else if (s.id === 'poison' && !(u.isMeme && u.meme.traits.includes('zombie'))) {
-        await this.dealRaw(u, 2, '🤢');
+        await this.dealRaw(u, 2, { color: '#4bc292' });
       }
       if (this.state.over || u.hp <= 0) return true;
     }
-    // wholesome regen
     if (u.isMeme && u.meme.traits.includes('wholesome') && u.hp > 0 && u.hp < u.hpMax) {
       u.hp = Math.min(u.hpMax, u.hp + 2);
       this.updateHpBar(u);
-      floatText(c().x, c().y - 40, '+2', { color: '#7dff9b', size: 16 });
+      floatText(c().x, c().y - 40, '+2', { color: '#4bc292', size: 16 });
     }
-    // miner steals
     if (!u.isMeme && u.def.ai === 'miner') {
       this.state.loot.stolen += 2;
-      floatText(c().x, c().y - 50, '⛏️ -2🪙', { color: '#ffd86b', size: 16 });
-      this.log(`${u.def.emoji} ${u.name} mined 2 coins out of your loot!`);
+      floatText(c().x, c().y - 50, '-2 coin', { color: '#f3b958', size: 16 });
+      this.log(`${u.name} mined 2 coins out of your loot!`, false, 'coin');
     }
-    // stun check
     const stun = u.statuses.find(s => s.id === 'stun');
     if (stun) {
-      floatText(c().x, c().y - 50, '💫 BONKED', { color: '#b967ff', size: 20 });
+      floatText(c().x, c().y - 50, 'BONKED', { color: '#8867a5', size: 20 });
       SFX.play('stun');
       this.expireStatus(u, 'stun');
       skip = true;
     }
-    // captcha invulnerability announce
     if (!u.isMeme && u.def.captcha) {
       const invuln = this.state.round % 2 === 0;
-      if (invuln) this.log(`🚦 ${u.name} is VERIFYING — invulnerable this round!`, true);
+      if (invuln) this.log(`${u.name} is VERIFYING — invulnerable this round!`, true, 'trafficlight');
     }
     return skip;
   },
 
   endOfTurn(u) {
-    // decrement statuses that tick per own-turn
     for (const s of u.statuses.slice()) {
       s.turns--;
       if (s.turns <= 0) this.expireStatus(u, s.id);
@@ -455,7 +432,6 @@ const Combat = {
   },
 
   pathTo(u, target) {
-    // BFS with parent tracking (recompute; cheap on this grid size)
     const start = u.cell;
     const parent = new Map();
     const startK = this.key(start.q, start.r);
@@ -495,7 +471,7 @@ const Combat = {
       u.moved = true;
       st.busy = false;
       if (st.over) return;
-      if (u.hp <= 0) { this.setMode('idle'); this.nextTurn(); return; } // died on a hazard
+      if (u.hp <= 0) { this.setMode('idle'); this.nextTurn(); return; }
       if (u.acted) this.maybeAutoEnd(u);
       else { this.autoSelectAbility(u); }
       this.renderUnitCard(u);
@@ -510,15 +486,11 @@ const Combat = {
       u.acted = true;
       st.busy = false;
       if (st.over) return;
-      if (u.hp <= 0) { this.setMode('idle'); this.nextTurn(); return; } // cursed self-bonk etc.
+      if (u.hp <= 0) { this.setMode('idle'); this.nextTurn(); return; }
       this.renderUnitCard(u);
       this.maybeAutoEnd(u);
       return;
     }
-  },
-
-  onHexHover(cell) {
-    // reserved for path previews; highlights already communicate range
   },
 
   maybeAutoEnd(u) {
@@ -550,14 +522,10 @@ const Combat = {
     const ab = DATA.ABILITIES[abId];
     this.renderUnitCard(u);
 
-    // self-cast abilities execute instantly on button press? No — need confirm via button double-press.
-    // We highlight targets; self abilities get executed via the same button (handled in renderUnitCard).
     this.clearHighlights();
-    if (u.moved !== true && st.mode !== 'target') { /* keep */ }
     st.mode = 'target';
 
     if (ab.target === 'self') {
-      // show AoE preview around self
       if (ab.aoe) {
         for (const c of this.state.cells.values()) {
           if (this.dist(c, u.cell) <= ab.aoe && c !== u.cell) c.el.classList.add(ab.heal ? 'hl-heal' : 'hl-aoe');
@@ -578,7 +546,6 @@ const Combat = {
     }
   },
 
-  // true if no blocked hex sits between a and b along their shared line
   lineClear(a, b) {
     const dir = this.dirTowards(a, b);
     if (!dir) return false;
@@ -595,7 +562,6 @@ const Combat = {
     const dq = b.q - a.q, dr = b.r - a.r;
     if (dq === 0 && dr === 0) return false;
     for (const [xq, xr] of this.DIRS) {
-      // b = a + k * dir?
       if (xq === 0 && xr === 0) continue;
       const kq = xq !== 0 ? dq / xq : null;
       const kr = xr !== 0 ? dr / xr : null;
@@ -611,20 +577,18 @@ const Combat = {
       this.moveUnitTo(u, step);
       SFX.play('step');
       await U.wait(140);
-      // coin pickup
       if (step.coin && u.isMeme) {
         this.state.loot.coins += step.coin;
         const c = centerOf(u.el);
         FX.coins(c.x, c.y, 5);
         SFX.play('coin');
-        floatText(c.x, c.y - 40, `+${step.coin}🪙`, { color: '#ffd86b', size: 20 });
+        floatText(c.x, c.y - 40, `+${step.coin}`, { color: '#f3b958', size: 20 });
         step.coin = 0;
         const deco = step.el.querySelector('.hex-deco');
         if (deco) deco.remove();
       }
-      // hazard damage on entering
       if (step.hazard) {
-        await this.dealRaw(u, 4, '🔥');
+        await this.dealRaw(u, 4, { color: '#ff9a00' });
         if (u.hp <= 0) break;
       }
     }
@@ -637,7 +601,7 @@ const Combat = {
   async execAbility(u, abId, targetCell) {
     const st = this.state;
     const ab = DATA.ABILITIES[abId];
-    u.cds[abId] = ab.cd + 1; // ticks down at start of own turn; net = cd turns
+    u.cds[abId] = ab.cd + 1;
     if (ab.cd === 0) u.cds[abId] = 0;
 
     u.el.classList.add('attacking');
@@ -648,7 +612,6 @@ const Combat = {
       targets.push(u.cell);
       if (ab.aoe) for (const c of st.cells.values()) if (this.dist(c, u.cell) <= ab.aoe && c !== u.cell) targets.push(c);
     } else if (ab.line) {
-      // everything along the line from u to targetCell direction, up to range
       const dir = this.dirTowards(u.cell, targetCell);
       if (dir) {
         for (let k = 1; k <= ab.range; k++) {
@@ -665,9 +628,8 @@ const Combat = {
       targets.push(targetCell);
     }
 
-    this.log(`${u.isMeme ? '🐸' : '👾'} ${u.name} used ${ab.ico} ${ab.name}!`);
+    this.log(`${u.name} used ${ab.name}!`, false, ab.ico);
 
-    // ---- special: summon clone ----
     if (ab.summon) {
       const spot = this.freeCellNear(u.cell);
       if (spot && u.isMeme) {
@@ -689,7 +651,6 @@ const Combat = {
       return;
     }
 
-    // ---- special: dash (nyan) ----
     if (ab.dash) {
       const dir = this.dirTowards(u.cell, targetCell);
       if (dir) {
@@ -697,7 +658,7 @@ const Combat = {
         for (let k = 1; k <= ab.range; k++) {
           const c = this.cell(u.cell.q + dir[0], u.cell.r + dir[1]);
           if (!c || c.blocked) break;
-          if (c.unit) break; // stop before the victim
+          if (c.unit) break;
           this.moveUnitTo(u, c);
           const cc = centerOf(u.el);
           FX.rainbow(cc.x, cc.y + 20, 6);
@@ -706,7 +667,6 @@ const Combat = {
       }
     }
 
-    // ---- special: zoomies ----
     if (ab.extraMove) {
       u.moved = false;
       SFX.play('whoosh');
@@ -714,15 +674,13 @@ const Combat = {
 
     if (ab.selfStatus) this.applyStatus(u, u, { ...ab.selfStatus, chance: 1 });
 
-    // ---- hit each target ----
     let any = false;
     for (const c of targets) {
-      if (u.hp <= 0) break; // the caster died mid-ability (reflect, hazard...)
+      if (u.hp <= 0) break;
       const t = c.unit;
       if (!t || t.hp <= 0) continue;
 
       if (ab.target === 'ally' && !ab.heal) {
-        // pure buff (STONKS et al) — status only, on allies
         if (t.isMeme !== u.isMeme) continue;
         any = true;
         if (ab.status) this.applyStatus(u, t, ab.status);
@@ -735,12 +693,12 @@ const Combat = {
         if (ab.lucky) {
           const roll = U.chance(U.clamp(u.stats.lck / 100 + 0.35, 0, 0.95));
           amount = roll ? Math.round(u.stats.int * ab.power) : 1;
-          if (!roll) this.log('🙏 ...it did basically nothing.');
+          if (!roll) this.log('...it did basically nothing.', false, 'pray');
         }
         await this.healUnit(u, t, amount);
       } else {
         if (t === u) continue;
-        if (t.isMeme === u.isMeme) continue; // no friendly fire on damage abilities
+        if (t.isMeme === u.isMeme) continue;
         any = true;
         let mult = 1;
         if (ab.fullhp && t.hp >= t.hpMax) mult *= ab.fullhp;
@@ -762,13 +720,11 @@ const Combat = {
   dirTowards(from, to) {
     const dq = to.q - from.q, dr = to.r - from.r;
     for (const [xq, xr] of this.DIRS) {
-      // does dir * k == (dq,dr) for integer k>0?
       let k = null;
       if (xq !== 0 && dq % xq === 0) k = dq / xq;
       else if (xq === 0 && dq === 0 && xr !== 0) k = dr / xr;
       if (k !== null && k > 0 && Number.isInteger(k) && from.q + xq * k === to.q && from.r + xr * k === to.r) return [xq, xr];
     }
-    // fallback: nearest direction
     let best = null, bd = Infinity;
     for (const [xq, xr] of this.DIRS) {
       const c = this.cell(from.q + xq, from.r + xr);
@@ -787,7 +743,6 @@ const Combat = {
     if (u.statuses.some(s => s.id === 'atkUp')) m *= 1.5;
     if (u.statuses.some(s => s.id === 'atkDown')) m *= 0.6;
     if (u.isMeme && u.meme.traits.includes('stale')) m *= 0.9;
-    // cringe aura from adjacent allies
     if (u.cell) {
       for (const n of this.neighbors(u.cell)) {
         if (n.unit && n.unit !== u && n.unit.isMeme === u.isMeme && n.unit.isMeme && n.unit.meme.traits.includes('cringe')) { m *= 0.85; break; }
@@ -800,25 +755,22 @@ const Combat = {
     const st = this.state;
     if (!target || target.hp <= 0) return;
 
-    // cursed self-bonk
     if (attacker.isMeme && attacker.meme.traits.includes('cursed') && U.chance(0.06)) {
-      this.log(`👁️ ${attacker.name} bonked ITSELF. classic.`);
-      await this.dealRaw(attacker, Math.max(1, Math.round(attacker.stats.atk * 0.5)), '👁️');
+      this.log(`${attacker.name} bonked ITSELF. classic.`, false, 'eye');
+      await this.dealRaw(attacker, Math.max(1, Math.round(attacker.stats.atk * 0.5)));
       return;
     }
 
-    // captcha invulnerability (even rounds)
     if (!target.isMeme && target.def.captcha && st.round % 2 === 0) {
       const c = centerOf(target.el);
-      floatText(c.x, c.y - 50, '🚦 VERIFY FIRST', { color: '#01cdfe', size: 18 });
+      floatText(c.x, c.y - 50, 'INVULN', { color: '#009dff', size: 18 });
       SFX.play('error');
       return;
     }
 
-    // dodge
     if (target.stats.dodge && U.chance(target.stats.dodge / 100)) {
       const c = centerOf(target.el);
-      floatText(c.x, c.y - 50, '😇 DODGED', { color: '#05ffa1', size: 20 });
+      floatText(c.x, c.y - 50, 'DODGED', { color: '#4bc292', size: 20 });
       SFX.play('whoosh');
       return;
     }
@@ -826,28 +778,24 @@ const Combat = {
     const stat = opts.stat === 'int' ? attacker.stats.int : attacker.stats.atk;
     let dmg = stat * (opts.power || 1) * U.rand(0.85, 1.15) * this.outgoingMult(attacker);
 
-    // crit
     const isCrit = U.chance((attacker.stats.crit || 5) / 100);
     if (isCrit) dmg *= 1.75;
 
-    // target modifiers
     if (target.isMeme && target.meme.traits.includes('ratiod')) dmg *= 1.12;
 
     dmg = Math.max(1, Math.round(dmg));
 
-    // reflect
     const refl = target.statuses.find(s => s.id === 'reflect');
     if (refl) {
       this.expireStatus(target, 'reflect');
       const c = centerOf(target.el);
-      floatText(c.x, c.y - 50, '🔄 NO U', { color: '#01cdfe', size: 22 });
+      floatText(c.x, c.y - 50, 'NO U', { color: '#009dff', size: 22 });
       SFX.play('zap');
       await U.wait(200);
-      await this.dealRaw(attacker, dmg, '🔄');
+      await this.dealRaw(attacker, dmg);
       return;
     }
 
-    // shield absorb
     const sh = target.statuses.find(s => s.id === 'shield');
     if (sh) {
       const absorbed = Math.min(sh.power || 5, dmg);
@@ -856,10 +804,10 @@ const Combat = {
       if (sh.power <= 0) this.expireStatus(target, 'shield');
     }
 
-    await this.dealRaw(target, dmg, null, { crit: isCrit, attacker });
+    await this.dealRaw(target, dmg, { crit: isCrit, attacker });
   },
 
-  async dealRaw(target, dmg, emoji, opts = {}) {
+  async dealRaw(target, dmg, opts = {}) {
     if (!target || target.hp <= 0) return;
     target.hp = Math.max(0, target.hp - dmg);
     this.updateHpBar(target);
@@ -870,13 +818,13 @@ const Combat = {
     target.el.classList.add('hurt');
 
     if (opts.crit) {
-      floatText(c.x, c.y - 46, `${dmg}`, { color: '#ff4d6d', size: 40 });
-      floatText(c.x, c.y - 84, U.pick(DATA.CRIT_WORDS), { color: '#fffb96', size: 22 });
+      floatText(c.x, c.y - 46, `${dmg}`, { color: '#fe5f55', size: 40 });
+      floatText(c.x, c.y - 84, U.pick(DATA.CRIT_WORDS), { color: '#eac058', size: 22 });
       FX.boom(c.x, c.y);
       SFX.play('crit');
       Shake.hit(10);
     } else {
-      floatText(c.x, c.y - 46, `${emoji ? emoji + ' ' : ''}${dmg}`, { color: '#fff', size: 26 });
+      floatText(c.x, c.y - 46, `${dmg}`, { color: opts.color || '#fff', size: 26 });
       FX.hit(c.x, c.y);
       SFX.play(target.isMeme ? 'hurt' : 'bonk');
       Shake.hit(4);
@@ -893,7 +841,7 @@ const Combat = {
     this.updateHpBar(target);
     const c = centerOf(target.el);
     FX.heal(c.x, c.y);
-    floatText(c.x, c.y - 46, `+${amount}`, { color: '#7dff9b', size: 26 });
+    floatText(c.x, c.y - 46, `+${amount}`, { color: '#4bc292', size: 26 });
     SFX.play('heal');
     await U.wait(150);
   },
@@ -904,14 +852,12 @@ const Combat = {
     if (spec.luckBoost && source.isMeme) chance += source.stats.lck / 150;
     if (!U.chance(chance)) return;
 
-    // resist
     const st = DATA.STATUS[spec.id];
     if (st.bad && target.stats.resist && U.chance(target.stats.resist / 100)) {
       const c = centerOf(target.el);
-      floatText(c.x, c.y - 50, '🐺 RESISTED', { color: '#b967ff', size: 16 });
+      floatText(c.x, c.y - 50, 'RESISTED', { color: '#8867a5', size: 16 });
       return;
     }
-    // zombie immune to dots
     if (target.isMeme && target.meme.traits.includes('zombie') && (spec.id === 'poison' || spec.id === 'burn')) return;
 
     const existing = target.statuses.find(s => s.id === spec.id);
@@ -919,7 +865,7 @@ const Combat = {
     else target.statuses.push({ id: spec.id, turns: spec.turns, power: spec.power || (spec.id === 'shield' ? 8 : 0) });
 
     const c = centerOf(target.el);
-    floatText(c.x, c.y - 62, `${st.ico} ${st.name}!`, { color: st.bad ? '#ff9e3d' : '#05ffa1', size: 16 });
+    floatText(c.x, c.y - 62, `${st.name}!`, { color: st.bad ? '#ff9a00' : '#4bc292', size: 16 });
     this.renderStatusIcons(target);
   },
 
@@ -930,16 +876,15 @@ const Combat = {
     for (let i = 0; i < tiles; i++) {
       const next = this.cell(target.cell.q + dir[0], target.cell.r + dir[1]);
       if (!next || next.blocked || next.unit) {
-        // slam!
-        await this.dealRaw(target, 2, '💥');
+        await this.dealRaw(target, 2);
         break;
       }
       this.moveUnitTo(target, next);
       await U.wait(120);
-      if (next.hazard) { await this.dealRaw(target, 4, '🔥'); if (target.hp <= 0) return; }
+      if (next.hazard) { await this.dealRaw(target, 4, { color: '#ff9a00' }); if (target.hp <= 0) return; }
     }
     const c = centerOf(target.el);
-    floatText(c.x, c.y - 60, 'YEET', { color: '#fffb96', size: 20 });
+    floatText(c.x, c.y - 60, 'YEET', { color: '#eac058', size: 20 });
   },
 
   async killUnit(u, killer) {
@@ -953,38 +898,35 @@ const Combat = {
     if (u.isMeme) {
       FX.skull(c.x, c.y);
       floatText(c.x, c.y - 60, 'F', { color: '#fff', size: 46 });
-      this.log(`💀 ${u.name} was DELETED... F in the chat.`, true);
+      this.log(`${u.name} was DELETED... F in the chat.`, true, 'skull');
       if (!u.isClone) st.deadMemes.push(u);
     } else {
-      floatText(c.x, c.y - 60, 'DELETED', { color: '#05ffa1', size: 24 });
-      this.log(`✅ ${u.name} deleted! +${u.def.bounty}🪙`);
+      floatText(c.x, c.y - 60, 'DELETED', { color: '#4bc292', size: 24 });
+      this.log(`${u.name} deleted! +${u.def.bounty}`, false, 'coin');
       st.loot.coins += u.def.bounty;
       Game.state.stats.virusesDeleted++;
       if (killer && killer.isMeme && !killer.isClone) {
         killer.meme.kills++;
         const ups = Genetics.grantXp(killer.meme, u.def.xp);
         const kc = centerOf(killer.el);
-        floatText(kc.x, kc.y - 66, `+${u.def.xp} XP`, { color: '#01cdfe', size: 16 });
+        floatText(kc.x, kc.y - 66, `+${u.def.xp} XP`, { color: '#009dff', size: 16 });
         if (ups) {
           SFX.play('levelup');
           FX.confetti(kc.x, kc.y, 20);
-          floatText(kc.x, kc.y - 92, 'LEVEL UP!', { color: '#fffb96', size: 24 });
-          // heal on level up, refresh stats
+          floatText(kc.x, kc.y - 92, 'LEVEL UP!', { color: '#eac058', size: 24 });
           killer.stats = Genetics.effStats(killer.meme);
           killer.hpMax = killer.stats.hp;
           killer.hp = Math.min(killer.hpMax, killer.hp + 8);
           this.updateHpBar(killer);
         }
       }
-      // viral spread
       if (killer && killer.isMeme && killer.meme.traits && killer.meme.traits.includes('viral')) {
         for (const n of this.neighbors(u.cell)) {
           if (n.unit && !n.unit.isMeme && n.unit.hp > 0) {
-            await this.dealRaw(n.unit, 3, '🦠');
+            await this.dealRaw(n.unit, 3, { color: '#4bc292' });
           }
         }
       }
-      // blob splits
       if (u.def.splits) {
         await U.wait(400);
         for (let i = 0; i < 2; i++) {
@@ -994,7 +936,7 @@ const Combat = {
             if (mini) { st.queue.push(mini); }
           }
         }
-        this.log('🫠 The blob SPLIT! Ugh.');
+        this.log('The blob SPLIT! Ugh.', false, 'virus');
         this.renderTurnOrderBar();
       }
     }
@@ -1016,7 +958,7 @@ const Combat = {
   renderStatusIcons(u) {
     if (!u.el) return;
     const box = u.el.querySelector('.u-status');
-    if (box) box.innerHTML = u.statuses.map(s => DATA.STATUS[s.id].ico).join('');
+    if (box) box.innerHTML = u.statuses.map(s => Icon.ico(DATA.STATUS[s.id].ico, 14)).join('');
   },
 
   /* ============================================================
@@ -1025,10 +967,8 @@ const Combat = {
   pickTarget(u) {
     const memes = this.livingMemes();
     if (!memes.length) return null;
-    // clickbait taunt
     const baited = memes.filter(m => !m.isClone && m.meme.traits.includes('clickbait'));
     const pool = baited.length && U.chance(0.7) ? baited : memes;
-    // nearest, tiebreak lowest hp
     pool.sort((a, b) => (this.dist(u.cell, a.cell) - this.dist(u.cell, b.cell)) || (a.hp - b.hp));
     return pool[0];
   },
@@ -1043,26 +983,22 @@ const Combat = {
     const target = this.pickTarget(u);
     if (!target) return;
 
-    // pick best usable ability
     const usable = u.abilities.filter(a => !(u.cds[a] > 0));
     const byPriority = usable.sort((a, b) => {
       const A = DATA.VIRUS_ABILITIES[a], B = DATA.VIRUS_ABILITIES[b];
       return ((B.summon ? 3 : 0) + (B.status ? 1 : 0) + B.range / 10) - ((A.summon ? 3 : 0) + (A.status ? 1 : 0) + A.range / 10);
     });
 
-    // summoner: summon first if possible
     for (const abId of byPriority) {
       const ab = DATA.VIRUS_ABILITIES[abId];
       if (ab.summon) {
         await this.virusCast(u, abId, u.cell);
-        // then maybe still move away a bit; done
         this.postMoveAI(u, target, def);
         return;
       }
     }
 
     if (def.ai === 'miner') {
-      // shuffles around aimlessly, occasionally bites back if adjacent
       const adj = this.neighbors(u.cell).find(n => n.unit && n.unit.isMeme && n.unit.hp > 0);
       if (adj && !(u.cds['vbite'] > 0)) await this.virusCast(u, 'vbite', adj);
       else await this.aiWander(u);
@@ -1070,11 +1006,8 @@ const Combat = {
     }
 
     const desiredRange = def.ai === 'ranged' ? this.bestRangedRange(u) : 1;
-
-    // self-centered AoEs (vbsod) have range 0 but reach out to their aoe radius
     const castRange = ab => (ab.aoe && ab.range === 0) ? ab.aoe : ab.range;
 
-    // if any usable ability can hit now, use it
     for (const abId of byPriority) {
       const ab = DATA.VIRUS_ABILITIES[abId];
       if (ab.summon) continue;
@@ -1084,11 +1017,9 @@ const Combat = {
       }
     }
 
-    // move toward (or kite away for ranged)
     await this.aiApproach(u, target, desiredRange);
     if (st.over || u.hp <= 0) return;
 
-    // try again after moving
     for (const abId of byPriority) {
       const ab = DATA.VIRUS_ABILITIES[abId];
       if (ab.summon) continue;
@@ -1109,7 +1040,6 @@ const Combat = {
   },
 
   async postMoveAI(u, target, def) {
-    // small reposition after summoning
     if (U.chance(0.5)) await this.aiWander(u);
   },
 
@@ -1125,7 +1055,6 @@ const Combat = {
     const budget = this.moveBudget(u);
     const reach = this.reachable(u, budget);
     if (!reach.length) return;
-    // choose the reachable cell that best matches desiredRange to target (avoid hazards)
     let best = null, bestScore = Infinity;
     for (const c of reach.concat([u.cell])) {
       const d = this.dist(c, target.cell);
@@ -1138,13 +1067,12 @@ const Combat = {
         for (const step of path) {
           this.moveUnitTo(u, step);
           await U.wait(110);
-          if (step.hazard) { await this.dealRaw(u, 4, '🔥'); if (u.hp <= 0) return; }
+          if (step.hazard) { await this.dealRaw(u, 4, { color: '#ff9a00' }); if (u.hp <= 0) return; }
           if (step.coin) {
-            // viruses gobble coins, the monsters
             step.coin = 0;
             const deco = step.el.querySelector('.hex-deco');
             if (deco) deco.remove();
-            this.log(`${u.def.emoji} ${u.name} ate the coins. Rude.`);
+            this.log(`${u.name} ate the coins. Rude.`, false, 'coin');
           }
         }
       }
@@ -1158,7 +1086,7 @@ const Combat = {
 
     u.el.classList.add('attacking');
     setTimeout(() => u.el.classList.remove('attacking'), 320);
-    this.log(`👾 ${u.name}: ${ab.ico} ${ab.name}!`);
+    this.log(`${u.name}: ${ab.name}!`, false, ab.ico);
 
     if (ab.summon) {
       for (let i = 0; i < (ab.count || 1); i++) {
@@ -1175,7 +1103,6 @@ const Combat = {
 
     const targets = [];
     if (ab.aoe) {
-      // centered on self for vbsod
       for (const c of this.state.cells.values()) {
         if (this.dist(c, u.cell) <= ab.aoe && c.unit && c.unit.isMeme && c.unit.hp > 0) targets.push(c.unit);
       }
@@ -1185,7 +1112,7 @@ const Combat = {
     }
 
     for (const t of targets) {
-      if (u.hp <= 0) break; // caster died mid-cast (UNO Reverse reflect)
+      if (u.hp <= 0) break;
       await this.attack(u, t, { power: ab.power, stat: 'atk' });
       if (t.hp > 0 && ab.status) this.applyStatus(u, t, ab.status);
       if (t.hp > 0 && ab.pull && u.cell) await this.pull(t, u.cell, ab.pull);
@@ -1195,8 +1122,8 @@ const Combat = {
           Game.state.coins -= stolen;
           Desktop.updateTray();
           const c = centerOf(t.el);
-          floatText(c.x, c.y - 70, `-${stolen}🪙`, { color: '#ff9e3d', size: 18 });
-          this.log(`🔒 ${u.name} extorted ${stolen} coins!`);
+          floatText(c.x, c.y - 70, `-${stolen}`, { color: '#ff9a00', size: 18 });
+          this.log(`${u.name} extorted ${stolen} coins!`, false, 'lock');
         }
       }
       if (this.state.over) return;
@@ -1213,17 +1140,16 @@ const Combat = {
       if (!next || next.blocked || next.unit || next === towardCell) break;
       this.moveUnitTo(target, next);
       await U.wait(120);
-      if (next.hazard) { await this.dealRaw(target, 4, '🔥'); if (target.hp <= 0) return; }
+      if (next.hazard) { await this.dealRaw(target, 4, { color: '#ff9a00' }); if (target.hp <= 0) return; }
     }
     const c = centerOf(target.el);
-    floatText(c.x, c.y - 55, '🪝 HOOKED', { color: '#01cdfe', size: 18 });
+    floatText(c.x, c.y - 55, 'HOOKED', { color: '#009dff', size: 18 });
   },
 
   async confusedTurn(u) {
     const c = centerOf(u.el);
-    floatText(c.x, c.y - 60, '🎶 never gonna give you up 🎶', { color: '#ff71ce', size: 14 });
+    floatText(c.x, c.y - 60, 'never gonna give you up', { color: '#8867a5', size: 13 });
     await this.aiWander(u);
-    // bonk random adjacent anyone
     const adj = this.neighbors(u.cell).filter(n => n.unit && n.unit.hp > 0);
     if (adj.length && U.chance(0.7)) {
       const victim = U.pick(adj).unit;
@@ -1233,7 +1159,6 @@ const Combat = {
   },
 
   async cloneTurn(u) {
-    // clones: simple melee AI vs viruses
     const foes = this.livingFoes();
     if (!foes.length) return;
     foes.sort((a, b) => this.dist(u.cell, a.cell) - this.dist(u.cell, b.cell));
@@ -1256,8 +1181,8 @@ const Combat = {
     st.queue.forEach((u, i) => {
       const chip = U.el('div', 'to-chip' + (u.isMeme ? '' : ' foe') + (i === st.qi ? ' active' : '') + (u.hp <= 0 ? ' dead' : ''));
       chip.innerHTML = (u.isMeme
-        ? Sprite.memeSVG(u.meme, { equip: false })
-        : `<span class="to-emoji">${u.def.emoji}</span>`)
+        ? Sprite.memeSVG(u.meme, { equip: false, size: 34 })
+        : Pixel.img(Sprite.virusSrc(u.def.art), 34, 'virus-px'))
         + `<div class="to-hp"><div style="width:${U.clamp(u.hp / u.hpMax * 100, 0, 100)}%"></div></div>`;
       Tooltip.bind(chip, () => this.unitTooltip(u));
       box.appendChild(chip);
@@ -1271,17 +1196,17 @@ const Combat = {
 
     const isPlayers = u.isMeme && !u.statuses.some(s => s.id === 'confuse');
     card.innerHTML = `
-      <div class="uc-face">${u.isMeme ? Sprite.memeSVG(u.meme, { equip: false }) : `<span class="uc-emoji">${u.def.emoji}</span>`}</div>
+      <div class="uc-face">${u.isMeme ? Sprite.memeSVG(u.meme, { equip: false, size: 52 }) : Pixel.img(Sprite.virusSrc(u.def.art), 52, 'virus-px')}</div>
       <div class="uc-info">
         <span class="uc-name">${U.esc(u.name)}</span>
-        <span>❤️ ${u.hp}/${u.hpMax} &nbsp; 🔨 ${u.stats.atk} &nbsp; 🧠 ${u.stats.int}</span>
-        <span style="opacity:.7">${u.moved ? '✓ moved' : '🟢 can move'} · ${u.acted ? '✓ acted' : '🟢 can act'}</span>
-        <div class="uc-tags">${u.statuses.map(s => `<span class="pill">${DATA.STATUS[s.id].ico} ${DATA.STATUS[s.id].name}</span>`).join('')}</div>
+        <span class="uc-stat"><span>${Icon.ico('heart', 13)} ${u.hp}/${u.hpMax}</span><span>${Icon.ico('fist', 13)} ${u.stats.atk}</span><span>${Icon.ico('brain', 13)} ${u.stats.int}</span></span>
+        <span class="uc-flags">${u.moved ? 'moved' : 'can move'} · ${u.acted ? 'acted' : 'can act'}</span>
+        <div class="uc-tags">${u.statuses.map(s => `<span class="pill">${Icon.ico(DATA.STATUS[s.id].ico, 11)} ${DATA.STATUS[s.id].name}</span>`).join('')}</div>
       </div>`;
 
     btns.innerHTML = '';
     if (!isPlayers || !this.state.active || this.state.active !== u) {
-      if (!u.isMeme) btns.innerHTML = `<span style="font-size:13px;font-weight:bold;opacity:.6">😈 virus is plotting...</span>`;
+      if (!u.isMeme) btns.innerHTML = `<span style="font-size:13px;font-weight:bold;opacity:.6">virus is plotting...</span>`;
       return;
     }
 
@@ -1289,16 +1214,15 @@ const Combat = {
       const ab = DATA.ABILITIES[abId];
       const onCd = u.cds[abId] > 0;
       const b = U.el('button', 'ability-btn' + (this.state.selAbility === abId ? ' selected' : ''));
-      b.innerHTML = `<span class="ab-ico">${ab.ico}</span><span class="ab-name">${ab.name}</span>
+      b.innerHTML = `<span class="ab-ico">${Icon.ico(ab.ico, 22)}</span><span class="ab-name">${ab.name}</span>
         <span class="ab-sub">${ab.target === 'self' ? 'self' : 'rng ' + ab.range}${ab.cd ? ' · cd ' + ab.cd : ''}</span>
         ${onCd ? `<span class="ab-cd">${u.cds[abId]}</span>` : ''}`;
       b.disabled = onCd || u.acted;
-      Tooltip.bind(b, () => `<h4>${ab.ico} ${ab.name}</h4><div>${ab.desc}</div>${ab.cd ? `<div class="tt-sub">cooldown: ${ab.cd} turns</div>` : ''}`);
+      Tooltip.bind(b, () => `<h4>${Icon.ico(ab.ico, 15)} ${ab.name}</h4><div>${ab.desc}</div>${ab.cd ? `<div class="tt-sub">cooldown: ${ab.cd} turns</div>` : ''}`);
       b.onclick = async () => {
         SFX.play('select');
         if (ab.target === 'self') {
           if (this.state.selAbility === abId) {
-            // second press = confirm self-cast
             this.state.busy = true;
             this.clearHighlights();
             await this.execAbility(u, abId, u.cell);
@@ -1310,7 +1234,7 @@ const Combat = {
             this.maybeAutoEnd(u);
           } else {
             this.selectAbility(u, abId);
-            toast(`${ab.ico} press again to confirm <b>${ab.name}</b>`, 1600);
+            toast(`press again to confirm <b>${ab.name}</b>`, 1600, ab.ico);
           }
         } else {
           this.selectAbility(u, abId);
@@ -1319,15 +1243,16 @@ const Combat = {
       btns.appendChild(b);
     }
     const mv = U.el('button', 'ability-btn' + (this.state.mode === 'move' ? ' selected' : ''));
-    mv.innerHTML = `<span class="ab-ico">👟</span><span class="ab-name">Move</span><span class="ab-sub">${this.moveBudget(u)} tiles</span>`;
+    mv.innerHTML = `<span class="ab-ico">${Icon.ico('boot', 22)}</span><span class="ab-name">Move</span><span class="ab-sub">${this.moveBudget(u)} tiles</span>`;
     mv.disabled = u.moved;
     mv.onclick = () => { SFX.play('select'); this.state.selAbility = null; this.showMoveRange(u); this.renderUnitCard(u); };
     btns.prepend(mv);
   },
 
-  log(msg, important) {
+  log(msg, important, icon) {
     const box = document.getElementById('battle-log');
-    const line = U.el('div', 'log-line' + (important ? ' important' : ''), msg);
+    const ico = icon ? Icon.ico(icon, 13) : '';
+    const line = U.el('div', 'log-line' + (important ? ' important' : ''), ico + '<span>' + msg + '</span>');
     box.appendChild(line);
     while (box.children.length > 9) box.firstChild.remove();
   },
@@ -1341,7 +1266,7 @@ const Combat = {
     if (st.busy || !st.active || !st.active.isMeme || st.active.isClone
         || st.active.statuses.some(s => s.id === 'confuse')) {
       SFX.play('error');
-      toast('🎒 Wait for one of your memes\' turns!');
+      toast("Wait for one of your memes' turns!", 2600, 'bag');
       return;
     }
     const usable = Object.keys(Game.state.inventory).filter(id => DATA.ITEMS[id].battle);
@@ -1351,13 +1276,13 @@ const Combat = {
     for (const id of usable) {
       const it = DATA.ITEMS[id];
       const cell = U.el('div', 'inv-item',
-        `<span class="ii-count">${Game.state.inventory[id]}</span><span class="ii-ico">${it.ico}</span><span class="ii-name">${it.name}</span>`);
-      Tooltip.bind(cell, () => `<h4>${it.ico} ${it.name}</h4><div>${it.desc}</div>`);
+        `<span class="ii-count">${Game.state.inventory[id]}</span><span class="ii-ico">${Icon.ico(it.ico, 34)}</span><span class="ii-name">${it.name}</span>`);
+      Tooltip.bind(cell, () => `<h4>${Icon.ico(it.ico, 15)} ${it.name}</h4><div>${it.desc}</div>`);
       cell.onclick = () => { Modal.hide(); this.useBattleItem(id); };
       grid.appendChild(cell);
     }
     node.appendChild(grid);
-    Modal.show({ title: '🎒 Battle Bag', bodyNode: node, actions: [{ label: 'Close' }] });
+    Modal.show({ title: `${Icon.ico('bag', 20)} Battle Bag`, bodyNode: node, actions: [{ label: 'Close' }] });
   },
 
   async useBattleItem(id) {
@@ -1371,12 +1296,12 @@ const Combat = {
       const grid = U.el('div', 'breed-pick-grid');
       for (const u of pool) {
         const cell = U.el('div', 'mini-meme');
-        cell.innerHTML = `${Sprite.memeSVG(u.meme)}<span class="mm-name">${U.esc(u.name)}</span><span class="mm-sub">❤️${Math.max(0, u.hp)}/${u.hpMax}</span>`;
+        cell.innerHTML = `${Sprite.memeSVG(u.meme, { size: 60 })}<span class="mm-name">${U.esc(u.name)}</span><span class="mm-sub">${Icon.ico('heart', 11)}${Math.max(0, u.hp)}/${u.hpMax}</span>`;
         cell.onclick = () => { Modal.hide(); resolve(u); };
         grid.appendChild(cell);
       }
       node.appendChild(grid);
-      Modal.show({ title: `${it.ico} Use on...`, bodyNode: node, actions: [{ label: 'Cancel', fn: () => resolve(null) }] });
+      Modal.show({ title: `${Icon.ico(it.ico, 20)} Use on...`, bodyNode: node, actions: [{ label: 'Cancel', fn: () => resolve(null) }] });
     });
 
     switch (it.battle) {
@@ -1385,19 +1310,19 @@ const Combat = {
         if (!t) return;
         Game.removeItem(id);
         await this.healUnit(t, t, it.power);
-        this.log(`🍕 ${t.name} scarfed a pizza slice. +${it.power} HP`);
+        this.log(`${t.name} scarfed a pizza slice. +${it.power} HP`, false, 'pizza');
         break;
       }
       case 'energy': {
         const u = st.active;
-        if (!u || !u.isMeme) { toast('⚡ Wait for one of your memes\' turn!'); return; }
+        if (!u || !u.isMeme) { toast("Wait for one of your memes' turn!", 2600, 'energycan'); return; }
         Game.removeItem(id);
         u.moved = false;
         u.cds = {};
         SFX.play('levelup');
         const c = centerOf(u.el);
         FX.sparkle(c.x, c.y, 12);
-        this.log(`🧃 ${u.name} chugged a whole G-Fuel barrel!!`);
+        this.log(`${u.name} chugged a whole G-Fuel barrel!!`, false, 'energycan');
         this.renderUnitCard(u);
         this.showMoveRange(u);
         break;
@@ -1412,14 +1337,13 @@ const Combat = {
         t.statuses = [];
         const idx = st.deadMemes.indexOf(t);
         if (idx >= 0) st.deadMemes.splice(idx, 1);
-        // rebuild the unit element
         this.spawnUnitAt(t, spot);
-        st.units = st.units.filter((x, i) => x !== t || st.units.indexOf(x) === i); // dedupe safety
+        st.units = st.units.filter((x, i) => x !== t || st.units.indexOf(x) === i);
         if (!st.queue.includes(t)) st.queue.push(t);
         this.updateHpBar(t);
         SFX.play('fanfare');
-        bigBanner('⛽ COPIUM REVIVAL!');
-        this.log(`⛽ ${t.name} is BACK. The copium worked!`, true);
+        bigBanner('COPIUM REVIVAL!');
+        this.log(`${t.name} is BACK. The copium worked!`, true, 'copiumtank');
         this.renderTurnOrderBar();
         break;
       }
@@ -1427,9 +1351,9 @@ const Combat = {
         Game.removeItem(id);
         SFX.play('zap');
         Shake.hit(14);
-        bigBanner('💾 ANTIVIRUS DEPLOYED');
+        bigBanner('ANTIVIRUS DEPLOYED');
         for (const v of this.livingFoes()) {
-          await this.dealRaw(v, it.power, '💾');
+          await this.dealRaw(v, it.power, { color: '#009dff' });
           if (st.over) return;
         }
         break;
@@ -1444,10 +1368,10 @@ const Combat = {
   confirmFlee() {
     if (this.state.over) return;
     Modal.show({
-      title: '🏃 Run away?',
-      bodyHTML: '<p style="text-align:center">Live to meme another day?<br>No loot, no XP, and the viruses WILL talk trash.</p>',
+      title: `${Icon.ico('boot', 22)} Run away?`,
+      bodyHTML: '<p style="text-align:center">Live to meme another day?<br>No loot, no XP — and no retirement, so they can fight again.</p>',
       actions: [
-        { label: '🏃 FLEE', cls: 'bad', fn: () => this.finish('fled') },
+        { label: 'FLEE', cls: 'bad', fn: () => this.finish('fled') },
         { label: 'Keep fighting', cls: 'good' },
       ],
     });
@@ -1477,52 +1401,59 @@ const Combat = {
       if (mission.endless) Game.state.cloudWave++;
       Game.state.stats.wins++;
       SFX.play('fanfare');
-      bigBanner(U.pick(['🏆 VICTORY!', '🏆 GG EZ', '🏆 VIRUSES DELETED']));
+      bigBanner(U.pick(['VICTORY!', 'GG EZ', 'VIRUSES DELETED']));
     } else if (result === 'fled') {
       SFX.play('sadtrombone');
-      bigBanner('🏃 NOPE.');
+      bigBanner('NOPE.');
     } else {
       SFX.play('sadtrombone');
-      bigBanner('💀 WASTED');
+      bigBanner('WASTED');
     }
     Game.state.stats.battles++;
 
-    // grant loot & xp
+    // loot, xp, retirement
     const lvlUps = [];
+    const retiredNames = [];
     if (result === true) {
       Game.addCoins(coins, null);
       if (itemDrop) Game.addItem(itemDrop);
       for (const u of survivors) {
         const ups = Genetics.grantXp(u.meme, xpEach);
         if (ups) lvlUps.push(u.meme.name);
+        // Mewgenics rule: survive an adventure -> retire from combat, breed only
+        if (!u.meme.retired) { u.meme.retired = true; Game.state.stats.retired++; retiredNames.push(u.meme.name); }
       }
+      // progressive unlocks
+      Game.unlock('shop');
+      Game.unlock('inventory');
+      if (mission.id === 'spamfort') Game.unlock('endless');
     }
 
     await U.wait(1400);
 
-    // results modal
     const it = itemDrop ? DATA.ITEMS[itemDrop] : null;
     const deadList = st.deadMemes.map(u => u.meme.name);
     Modal.show({
-      title: result === true ? '🏆 MISSION CLEAR!' : result === 'fled' ? '🏃 Tactical Retreat' : '💀 DEFEAT',
+      title: result === true ? `${Icon.ico('trophy', 22)} MISSION CLEAR!` : result === 'fled' ? `${Icon.ico('boot', 22)} Tactical Retreat` : `${Icon.ico('skull', 22)} DEFEAT`,
       bodyHTML: `<div style="text-align:center">
         ${result === true ? `
           <div class="result-loot">
-            <span class="loot-chip">🪙 +${coins}</span>
-            ${it ? `<span class="loot-chip">${it.ico} ${it.name}</span>` : ''}
-            <span class="loot-chip">⭐ +${xpEach} XP each</span>
+            <span class="loot-chip">${Icon.ico('coin', 18)} +${coins}</span>
+            ${it ? `<span class="loot-chip">${Icon.ico(it.ico, 18)} ${it.name}</span>` : ''}
+            <span class="loot-chip">${Icon.ico('star', 18)} +${xpEach} XP</span>
           </div>
-          ${st.loot.stolen ? `<p style="font-size:12px;color:var(--red)">⛏️ miners stole ${st.loot.stolen}🪙 of that loot</p>` : ''}
-          ${lvlUps.length ? `<p style="font-size:13px">🎉 LEVEL UP: <b>${lvlUps.map(U.esc).join(', ')}</b></p>` : ''}`
+          ${st.loot.stolen ? `<p style="font-size:12px;color:var(--red)">miners stole ${st.loot.stolen} of that loot</p>` : ''}
+          ${lvlUps.length ? `<p style="font-size:13px">LEVEL UP: <b>${lvlUps.map(U.esc).join(', ')}</b></p>` : ''}
+          ${retiredNames.length ? `<p style="font-size:12px;color:var(--gold);margin-top:6px">${Icon.ico('crown', 13)} <b>${retiredNames.map(U.esc).join(', ')}</b> survived and RETIRED — breed them for the next generation.</p>` : ''}`
         : result === 'fled'
           ? '<p>You grabbed your memes and ran. The Wi-Fi router judged you silently.</p>'
           : '<p>The viruses have taken the field... your desktop mourns.</p>'}
-        ${deadList.length ? `<p style="margin-top:8px;color:var(--red)"><b>💀 Fallen legends:</b> ${deadList.map(U.esc).join(', ')}<br>
+        ${deadList.length ? `<p style="margin-top:8px;color:var(--red)"><b>Fallen:</b> ${deadList.map(U.esc).join(', ')}<br>
           <span style="font-size:11px">(visit the Graveyard to necropost them)</span></p>` : ''}
         <p style="font-size:12px;opacity:.6;margin-top:8px">A day passes on the desktop...</p>
       </div>`,
       actions: [{
-        label: '🏠 Back to Desktop', cls: 'good', fn: () => {
+        label: 'Back to Desktop', cls: 'good', fn: () => {
           document.getElementById('battle').classList.add('hidden');
           Game.advanceDay();
           Desktop.refreshWalkers();

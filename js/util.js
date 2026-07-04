@@ -94,9 +94,10 @@ const Tooltip = {
 /* ============================================================
    Toasts
    ============================================================ */
-function toast(html, ms = 3200) {
+function toast(html, ms = 3200, icon) {
   const box = document.getElementById('toasts');
-  const t = U.el('div', 'toast', html);
+  const ico = (icon && typeof Icon !== 'undefined') ? Icon.ico(icon, 15) : '';
+  const t = U.el('div', 'toast', ico + '<span>' + html + '</span>');
   box.appendChild(t);
   while (box.children.length > 5) box.firstChild.remove();
   setTimeout(() => {
@@ -128,7 +129,7 @@ const Modal = {
     else body.innerHTML = opts.bodyHTML || '';
     m.appendChild(body);
     const acts = U.el('div', 'modal-actions');
-    (opts.actions || [{ label: 'OK 👍', cls: 'good' }]).forEach(a => {
+    (opts.actions || [{ label: 'OK', cls: 'good' }]).forEach(a => {
       const b = U.el('button', 'chunky-btn ' + (a.cls || ''), a.label);
       b.onclick = () => {
         if (!a.keep) Modal.hide();

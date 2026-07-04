@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MEME-GENICS — breed memes, delete viruses</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐸</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'><rect width='10' height='10' fill='%2368ac8f'/><rect x='2' y='3' width='2' height='2' fill='%2326203a'/><rect x='6' y='3' width='2' height='2' fill='%2326203a'/><rect x='3' y='6' width='4' height='1' fill='%2326203a'/></svg>">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -22,14 +22,14 @@
       <div id="windows"></div>
 
       <div id="taskbar">
-        <button id="start-btn" class="chunky-btn">🍔 MEME</button>
+        <button id="start-btn" class="chunky-btn fun"><span id="start-ico"></span> MEME</button>
         <div id="task-buttons"></div>
         <div id="tray">
-          <span id="tray-coins" class="tray-chip" title="Dogecoins">🪙 <b>0</b></span>
-          <span id="tray-day" class="tray-chip" title="Day">📅 Day <b>1</b></span>
-          <span id="tray-pop" class="tray-chip" title="Memes living on your desktop">🐸 <b>0</b>/12</span>
-          <button id="tray-sound" class="tray-chip tray-btn" title="Toggle sound">🔊</button>
-          <button id="tray-music" class="tray-chip tray-btn" title="Toggle music">🎵</button>
+          <span id="tray-coins" class="tray-chip" title="Dogecoins"><span class="ci"></span> <b>0</b></span>
+          <span id="tray-day" class="tray-chip" title="Day"><span class="ci"></span> Day <b>1</b></span>
+          <span id="tray-pop" class="tray-chip" title="Memes on your desktop"><span class="ci"></span> <b>0</b>/12</span>
+          <button id="tray-sound" class="tray-chip tray-btn" title="Toggle sound"></button>
+          <button id="tray-music" class="tray-chip tray-btn" title="Toggle music"></button>
           <span id="tray-clock">4:20 PM</span>
         </div>
       </div>
@@ -41,7 +41,7 @@
     <div id="battle" class="hidden">
       <div id="battle-bg"></div>
       <div id="battle-header">
-        <div id="battle-title">⚔️ DOWNLOADS FOLDER</div>
+        <div id="battle-title">DOWNLOADS FOLDER</div>
         <div id="turn-order"></div>
         <div id="battle-round">ROUND 1</div>
       </div>
@@ -52,9 +52,9 @@
         <div id="unit-card"></div>
         <div id="action-buttons"></div>
         <div id="battle-side-buttons">
-          <button id="btn-bag" class="chunky-btn small">🎒 Bag</button>
-          <button id="btn-endturn" class="chunky-btn small good">⏭️ End Turn</button>
-          <button id="btn-flee" class="chunky-btn small bad">🏃 Flee</button>
+          <button id="btn-bag" class="chunky-btn small">Bag</button>
+          <button id="btn-endturn" class="chunky-btn small good">End Turn</button>
+          <button id="btn-flee" class="chunky-btn small bad">Flee</button>
         </div>
       </div>
       <div id="battle-log"></div>
@@ -71,6 +71,7 @@
 
   <script src="js/util.js"></script>
   <script src="js/audio.js"></script>
+  <script src="js/pixel.js"></script>
   <script src="js/data.js"></script>
   <script src="js/genetics.js"></script>
   <script src="js/sprites.js"></script>

@@ -10,7 +10,7 @@ const Genetics = {
   TRAIT_INHERIT: 0.45,       // chance each parent trait passes down
   TRAIT_MUTATION: 0.18,      // chance of a brand-new trait appearing
   MAX_TRAITS: 4,
-  ADULT_AGE: 2,              // days for a baby to grow up
+  ADULT_AGE: 1,              // days for a baby to grow up (Mewgenics: overnight)
   MAX_LEVEL: 10,
 
   /* ---------------- allele helpers ---------------- */
@@ -74,6 +74,7 @@ const Genetics = {
       parents: opts.parents || null,
       lineage: opts.lineage || [],
       necroposted: false,
+      retired: false,        // Mewgenics: survives one adventure, then only breeds
       pettedDay: 0,
       kills: 0, battles: 0,
     };

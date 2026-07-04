@@ -1,302 +1,1076 @@
 /* ============================================================
    MEME-GENICS — sprites.js
-   Procedural SVG memes: every body part comes from a gene,
-   so children visibly inherit their parents' looks.
+   All game art, hand-drawn pixel grids + a procedural pixel
+   renderer that draws every meme from its genome, so children
+   visibly inherit their parents' looks.
    ============================================================ */
 
-const Sprite = {
-  INK: '#2b1b3d',
-  _grad: 0,
+/* ============================================================
+   EXTRA ICONS — abilities, virus moves, items
+   (registered into the shared atlas from pixel.js)
+   ============================================================ */
+Object.assign(ICONS, {
 
-  lighten(hex, amt = 0.35) {
-    const n = parseInt(hex.slice(1), 16);
-    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-    const f = c => Math.round(c + (255 - c) * amt);
-    return `rgb(${f(r)},${f(g)},${f(b)})`;
+  /* ---------- ability glyphs ---------- */
+  hammer: { p: { k: '#6f6c88', s: '#9a97b0', h: '#a06a3c' }, g: [
+    '..oooooo..',
+    '.okkkkkko.',
+    '.okskkkko.',
+    '.okkkkkko.',
+    '..oooooo..',
+    '....oho...',
+    '....oho...',
+    '....oho...',
+    '....oho...',
+    '.....o....',
+  ]},
+  throw: { p: { c: '#7ec8ff' }, g: [
+    '..occcco..',
+    '.oco..oco.',
+    'oco....oco',
+    'oc......oc',
+    'oc........',
+    'oc....o...',
+    '.c...oco..',
+    '.c..occco.',
+    '....occcco',
+    '....ooooo.',
+  ]},
+  fries: { p: { y: '#ffd93d', r: '#e6482e', c: '#fff3a8' }, g: [
+    '..o.o.o...',
+    '.ocoyoco..',
+    '.oyocoyo..',
+    '.oyoyoyo..',
+    'oooooooo..',
+    'orrrrrro..',
+    'orwrrrro..',
+    'orrrrrro..',
+    '.orrrro...',
+    '..oooo....',
+  ]},
+  clipboard: { p: { b: '#a06a3c', c: '#f5efdf', d: '#b9b2a0' }, g: [
+    '...oooo...',
+    '.oobkkboo.',
+    '.obbbbbbo.',
+    '.obccccbo.',
+    '.obcddcbo.',
+    '.obccccbo.',
+    '.obcddcbo.',
+    '.obccccbo.',
+    '.obbbbbbo.',
+    '..oooooo..',
+  ]},
+  chartup: { p: { g: '#5fae5f', c: '#f5efdf' }, g: [
+    'oooooooooo',
+    'occcccccco',
+    'occccccggo',
+    'occcccggco',
+    'occccggcco',
+    'ocggcgccco',
+    'ocgggcccco',
+    'ocggccccco',
+    'occcccccco',
+    'oooooooooo',
+  ]},
+  violin: { p: { h: '#a06a3c', d: '#7c4f28', s: '#f5efdf' }, g: [
+    '.......oo.',
+    '......oso.',
+    '......oso.',
+    '..oo..oso.',
+    '.ohhooso..',
+    'ohhhhoso..',
+    'ohhdhhso..',
+    'ohhhhho...',
+    '.ohhho....',
+    '..ooo.....',
+  ]},
+  bubble: { p: { c: '#f2f0f7' }, g: [
+    '.oooooooo.',
+    'occcccccco',
+    'ockcckccko',
+    'occcccccco',
+    'occcccccco',
+    '.oooooooo.',
+    '..oco.....',
+    '.oco......',
+    '.oo.......',
+    '..........',
+  ]},
+  horn: { p: { r: '#e6482e', s: '#9a97b0', c: '#ffd93d' }, g: [
+    '........c.',
+    '......c...',
+    '....oo..c.',
+    '..oorro...',
+    'oorrrrо.c.'.replace('о','o'),
+    'orrrrrro..',
+    'oorrrrо...'.replace('о','o'),
+    '..oorro...',
+    '....oo....',
+    '.oso......',
+  ]},
+  rainbow: { p: { r: '#ff4d6d', y: '#ffd93d', g: '#5fae5f', b: '#4fc4e8' }, g: [
+    '...rrrr...',
+    '..ryyyyr..',
+    '.ryggggyr.',
+    'rygbbbbgyr',
+    'rygb..bgyr',
+    'ygb....bgy',
+    '..........',
+    '..........',
+    '..........',
+    '..........',
+  ]},
+  burger: { p: { b: '#e8b05c', g: '#5fae5f', r: '#e6482e', y: '#ffd93d' }, g: [
+    '..oooooo..',
+    '.obbbbbbo.',
+    'obbwbwbbbo',
+    'oggggggggo',
+    'orrrrrrrro',
+    'oyyyyyyyyo',
+    'obbbbbbbbo',
+    '.obbbbbbo.',
+    '..oooooo..',
+    '..........',
+  ]},
+  trophy: { p: { y: '#f0b541', l: '#ffe07a', d: '#c28024' }, g: [
+    'oooooooooo',
+    'oyyyyyyyyo',
+    '.oyylyyo..',
+    '.oyylyyo..',
+    '..oyyyo...',
+    '...oyo....',
+    '...oyo....',
+    '..oyyyo...',
+    '.oyyyyyo..',
+    '.ooooooo..',
+  ]},
+  pray: { p: { s: '#f2b988', y: '#ffd93d' }, g: [
+    '....y.....',
+    '...y.y....',
+    '....o.....',
+    '...oso....',
+    '...osso...',
+    '..ossso...',
+    '..ossso...',
+    '..osssо...'.replace('о','o'),
+    '...oso....',
+    '...oo.....',
+  ]},
+
+  /* ---------- virus move glyphs ---------- */
+  bite: { p: { c: '#f2f0f7' }, g: [
+    'o.o.o.o.o.',
+    'ococococo.',
+    'occcccccо.'.replace('о','o'),
+    '.occccco..',
+    '..........',
+    '.occccco..',
+    'occcccccо.'.replace('о','o'),
+    'ococococo.',
+    'o.o.o.o.o.',
+    '..........',
+  ]},
+  web: { p: { c: '#c8d0dd' }, g: [
+    'c...cc...c',
+    '.c..cc..c.',
+    '..c.cc.c..',
+    '...cccc...',
+    'cccc..cccc',
+    'cccc..cccc',
+    '...cccc...',
+    '..c.cc.c..',
+    '.c..cc..c.',
+    'c...cc...c',
+  ]},
+  hook: { p: { s: '#c8d0dd' }, g: [
+    '....oo....',
+    '....oso...',
+    '....oso...',
+    '....oso...',
+    '....oso...',
+    '.o..oso...',
+    'oso.oso...',
+    'osooso....',
+    '.ossso....',
+    '..ooo.....',
+  ]},
+  mail: { p: { c: '#f5efdf', r: '#e6482e' }, g: [
+    '..........',
+    'oooooooooo',
+    'occcccccco',
+    'ocоccccоco'.replace(/о/g,'c'),
+    'occoccocco',
+    'ocococococ'.slice(0,9)+'o',
+    'occcccccco',
+    'ocrrcccrco',
+    'occcccccco',
+    'oooooooooo',
+  ]},
+  trafficlight: { p: { k: '#3a3450', r: '#e6482e', y: '#ffd93d', g: '#5fae5f' }, g: [
+    '..oooooo..',
+    '..okkkko..',
+    '..okrrko..',
+    '..okkkko..',
+    '..okyyko..',
+    '..okkkko..',
+    '..okggko..',
+    '..okkkko..',
+    '..oooooo..',
+    '....oo....',
+  ]},
+  can: { p: { b: '#2f6ff2', y: '#ffd93d', s: '#c8d0dd' }, g: [
+    '..........',
+    '.oooooooo.',
+    '.ossssssо.'.replace('о','o'),
+    '.obbbbbbo.',
+    '.obbbbbbo.',
+    '.oyyyyyyo.',
+    '.obbbbbbo.',
+    '.obbbbbbo.',
+    '.ossssssо.'.replace('о','o'),
+    '.oooooooo.',
+  ]},
+
+  /* ---------- item art ---------- */
+  tophat: { p: { k: '#3a3450', r: '#e6482e' }, g: [
+    '..........',
+    '..oooooo..',
+    '..okkkko..',
+    '..okkkko..',
+    '..okkkko..',
+    '..orrrro..',
+    'oooooooooo',
+    'okkkkkkkko',
+    'oooooooooo',
+    '..........',
+  ]},
+  cap: { p: { r: '#e6482e', d: '#b53222' }, g: [
+    '..........',
+    '...oooo...',
+    '..orrrro..',
+    '.orrrrrro.',
+    '.orrwrrro.',
+    '.orrrrrro.',
+    '.oooooooo.',
+    '....odddoo',
+    '.....oooo.',
+    '..........',
+  ]},
+  crown: { p: { y: '#f0b541', r: '#e6482e', l: '#ffe07a' }, g: [
+    '..........',
+    'o...oo...o',
+    'oy..ly..yo',
+    'oyy.yy.yyo',
+    'oylyyyylyo',
+    'oyrryyrryo',
+    'oyyyyyyyyo',
+    'oooooooooo',
+    '..........',
+    '..........',
+  ]},
+  propeller: { p: { r: '#e6482e', b: '#4fc4e8', y: '#ffd93d' }, g: [
+    '.oo....oo.',
+    'orro..obbo',
+    '.oroyyobо.'.replace('о','o'),
+    '...oyyo...',
+    '..oooooo..',
+    '.obbrbbro.',
+    '.obrbbrbo.',
+    'obbrbbrbbo',
+    'oooooooooo',
+    '..........',
+  ]},
+  tinfoil: { p: { s: '#c8d0dd', l: '#f2f6fa' }, g: [
+    '....oo....',
+    '...osso...',
+    '...oslo...',
+    '..osssso..',
+    '..oslsso..',
+    '.osssssso.',
+    '.oslsssso.',
+    'osssssssso',
+    'oooooooooo',
+    '..........',
+  ]},
+  partyhat: { p: { p: '#ff6ba9', y: '#ffd93d' }, g: [
+    '....ww....',
+    '...owwo...',
+    '....oo....',
+    '...oppo...',
+    '...oppo...',
+    '..oyyyyo..',
+    '..oyyyyo..',
+    '.oppppppo.',
+    '.oppppppo.',
+    '..oooooo..',
+  ]},
+  keyboard: { p: { k: '#3a3450' }, g: [
+    '..........',
+    '..........',
+    'oooooooooo',
+    'okkkkkkkko',
+    'okwkwkwkko',
+    'okkkkkkkko',
+    'okwwwwwkko',
+    'okkkkkkkko',
+    'oooooooooo',
+    '..........',
+  ]},
+  gpu: { p: { g: '#5fae5f', k: '#3a3450' }, g: [
+    '..........',
+    'ooooooooo.',
+    'ogggggggо.'.replace('о','o'),
+    'ogokkoggo.',
+    'ogkookggo.',
+    'ogkookggo.',
+    'ogokkoggo.',
+    'ogggggggо.'.replace('о','o'),
+    'ooooooooo.',
+    '..o.o.o...',
+  ]},
+  mouse: { p: { b: '#c8d0dd', r: '#ff4d6d' }, g: [
+    '...oooo...',
+    '..obbbbo..',
+    '.obbobbbo.',
+    '.obbobbbo.',
+    '.obbbbbbo.',
+    '.obrrbbbo.',
+    '.obbbbbbo.',
+    '..obbbbo..',
+    '...oooo...',
+    '..........',
+  ]},
+  pizza: { p: { c: '#ffd93d', r: '#e6482e', b: '#c98b52' }, g: [
+    '.oooooooo.',
+    'obbbbbbbbo',
+    'occrccrcco',
+    '.occcccco.',
+    '.ocrccrco.',
+    '..occcco..',
+    '..ocrcco..',
+    '...occo...',
+    '...occo...',
+    '....oo....',
+  ]},
+  energycan: { p: { g: '#5fae5f', y: '#ffd93d', s: '#c8d0dd' }, g: [
+    '..oooooo..',
+    '..osssso..',
+    '.oggggggo.',
+    '.oggoyggo.',
+    '.ogoyyogо.'.replace('о','o'),
+    '.oggyoggo.',
+    '.oggoyggо.'.replace('о','o'),
+    '.oggggggo.',
+    '..osssso..',
+    '..oooooo..',
+  ]},
+  copiumtank: { p: { b: '#4fc4e8', l: '#a8e4f7' }, g: [
+    '...oo.....',
+    '..oooo....',
+    '...oo.....',
+    '..obbbo...',
+    '.obbbbbo..',
+    '.oblbbbo..',
+    '.obbbbbo..',
+    '.obwwbbo..',
+    '.obbbbbo..',
+    '..ooooo...',
+  ]},
+  usb: { p: { s: '#c8d0dd', b: '#4fc4e8' }, g: [
+    '...oooo...',
+    '...osso...',
+    '...osso...',
+    '..oooooo..',
+    '..obbbbo..',
+    '..obbbbo..',
+    '..obwbbo..',
+    '..obbbbo..',
+    '..oooooo..',
+    '..........',
+  ]},
+  flask: { p: { g: '#7dc95e', c: '#f2f0f7' }, g: [
+    '...oooo...',
+    '...o..o...',
+    '...o..o...',
+    '..o....o..',
+    '..o.gg.o..',
+    '.o.gggg.o.',
+    '.oggggggo.',
+    'oggggggggo',
+    'oooooooooo',
+    '..........',
+  ]},
+  flower: { p: { y: '#ffd93d', r: '#e6482e', g: '#5fae5f', b: '#c98b52' }, g: [
+    '...oooo...',
+    '..oyryyo..',
+    '..oyyryo..',
+    '...oooo...',
+    '....og....',
+    '....og....',
+    '..oooooo..',
+    '..obbbbo..',
+    '...obbo...',
+    '....oo....',
+  ]},
+  syringe: { p: { c: '#f2f0f7', p: '#ff6ba9' }, g: [
+    '.......oo.',
+    '......oko.',
+    '.....oko..',
+    '....okko..',
+    '...occо...'.replace('о','o'),
+    '..ocpco...',
+    '.ocpco....',
+    'occco.....',
+    'oooo......',
+    '.o........',
+  ]},
+  spray: { p: { b: '#7ec8ff', c: '#a8e4f7' }, g: [
+    '.oo....c..',
+    'okko..c.c.',
+    '.oo....c..',
+    'oooo......',
+    'obbbo.....',
+    'obwbo.....',
+    'obbbo.....',
+    'obbbo.....',
+    'obbbo.....',
+    'ooooo.....',
+  ]},
+});
+
+/* ============================================================
+   VIRUS PIXEL SPRITES
+   ============================================================ */
+const VIRUS_ART = {
+  popup: { p: { r: '#e6482e', c: '#f5efdf' }, g: [
+    'oooooooooooo',
+    'orrrrrrrrowo',
+    'oooooooooooo',
+    'occcccccccco',
+    'ockkccckkcco',
+    'ockkccckkcco',
+    'occcccccccco',
+    'occokkkkocco',
+    'occcccccccco',
+    'oooooooooooo',
+    '..oo....oo..',
+    '..oo....oo..',
+  ]},
+  worm: { p: { g: '#8ed07f', d: '#4d9142' }, g: [
+    '..ooooo.....',
+    '.ogggggo....',
+    'ogwkgwkgо...'.replace('о','o'),
+    'oggggggggo..',
+    'ogddgogggo..',
+    '.ooo..oggo..',
+    '.......oggo.',
+    '..ooo..oggo.',
+    '.ogggo.oggo.',
+    '.ogdggoggo..',
+    '..ogggggo...',
+    '...ooooo....',
+  ]},
+  trojan: { p: { h: '#b5793c', d: '#8a5426', s: '#6f6c88' }, g: [
+    '..oo........',
+    '.ohho.......',
+    'ohhkho......',
+    'ohhhhooooo..',
+    '.ohhhhhhhho.',
+    '.ohdhhhdhho.',
+    '.ohhhhhhhho.',
+    '.oohhhhhoo..',
+    '..oso..oso..',
+    '..oso..oso..',
+    '...o....o...',
+    '............',
+  ]},
+  blob: { p: { b: '#a86ae8', d: '#7c46b8' }, g: [
+    '....oooo....',
+    '..oobbbboo..',
+    '.obbbbbbbbo.',
+    '.obwkbbwkbo.',
+    'obbbbbbbbbbo',
+    'obbbokkobbbo',
+    'obbbbbbbbbbo',
+    '.obbbbbbbbo.',
+    '.obdobbodbo.',
+    '..obo.obbo..',
+    '..obo..obo..',
+    '...o....o...',
+  ]},
+  miniblob: { p: { b: '#a86ae8' }, g: [
+    '..oooo..',
+    '.obbbbo.',
+    'obkbbkbo',
+    'obbbbbbo',
+    'obbkkbbo',
+    '.obbbbo.',
+    '.obobbo.',
+    '..o..o..',
+  ]},
+  spyder: { p: { k: '#3a3450', r: '#ff4d6d' }, g: [
+    '.o..o..o..o.',
+    '..o.o..o.o..',
+    '...oooooo...',
+    '..okkkkkko..',
+    '.okrkkkkrko.',
+    '..okkkkkko..',
+    '...okokko...',
+    '...oooooo...',
+    '..o.o..o.o..',
+    '.o..o..o..o.',
+    '............',
+    '............',
+  ]},
+  ransom: { p: { y: '#f0b541', d: '#c28024' }, g: [
+    '...oooooo...',
+    '..oo....oo..',
+    '..o......o..',
+    '..o......o..',
+    '.oooooooooo.',
+    '.oyyyyyyyydo',
+    '.oykyyyykydo',
+    '.oyyyyyyyydo',
+    '.oyyokkoyydo',
+    '.oyyyokyyydo',
+    '.oyyyyyyyydo',
+    '.oooooooooo.',
+  ]},
+  phish: { p: { b: '#4fc4e8', d: '#2f8cb3', s: '#c8d0dd' }, g: [
+    '........os..',
+    '........oso.',
+    '....ooooosо.'.replace('о','o'),
+    '..oobbbbo.o.',
+    '.obwkbbbbo..',
+    'obbbbbbbbbo.',
+    'obbbbbbbdboo',
+    '.obbbbbbdbdo',
+    '..oobbbbooo.',
+    '....oooo.о..'.replace('о','.'),
+    '............',
+    '............',
+  ]},
+  drone: { p: { s: '#9a97b0', b: '#a8e4f7', g: '#5fae5f' }, g: [
+    '....oooo....',
+    '...obbbbo...',
+    '..obbwbbbo..',
+    '.oossssssoo.',
+    'osssssssssso',
+    'osgssggssgso',
+    '.oossssssoo.',
+    '...o.oo.o...',
+    '..o......o..',
+    '............',
+    '............',
+    '............',
+  ]},
+  adware: { p: { a: '#ff8a3d', c: '#ffd93d', k: '#3a3450' }, g: [
+    'oooooooo..c.',
+    'oaaaaaao.c..',
+    'oakaakao..c.',
+    'oaaaaaao.c.c',
+    'oaokkoao..c.',
+    'oaokkoao.c..',
+    'oaaaaaao..c.',
+    'oooooooo.c..',
+    '..oo.oo.....',
+    '..oo.oo.....',
+    '............',
+    '............',
+  ]},
+  miner: { p: { s: '#6f6c88', y: '#ffd93d', h: '#a06a3c', m: '#c8d0dd' }, g: [
+    '.........mm.',
+    '....oooo.omm',
+    '...ossssooh.',
+    '..ossssssoh.',
+    '..osykysoho.',
+    '..osssssoh..',
+    '...ossssoh..',
+    '..ossssoho..',
+    '..osssso.o..',
+    '...oooo.....',
+    '....o..o....',
+    '............',
+  ]},
+  captcha: { p: { k: '#3a3450', r: '#e6482e', y: '#ffd93d', g: '#5fae5f' }, g: [
+    '...oooooooo...',
+    '...okkkkkko...',
+    '..ookorrokoo..',
+    '.okokorrokoko.',
+    '.oko.kkkk.oko.',
+    '.oo.okoyyoko..'.replace('.o','.o'),
+    '....okoyyoko..',
+    '....okkkkkko..',
+    '....okoggoko..',
+    '....okoggoko..',
+    '....okkkkkko..',
+    '....oooooooo..',
+    '.....oo..oo...',
+    '.....oo..oo...',
+  ]},
+  bsod: { p: { b: '#2f6ff2', l: '#6f9ff7' }, g: [
+    '.oooooooooooo.',
+    '.obbbbbbbbbbo.',
+    '.oblbbbbbblbo.',
+    '.obkbbbbbbkbo.',
+    '.obkbbbbbbkbo.',
+    '.obbbbbbbbbbo.',
+    '.obbokkkkobbo.',
+    '.obokbbbbkobo.',
+    '.obbbbbbbbbbo.',
+    '.obwwbwwwbbbo.',
+    '.obwwwbwbbbbo.',
+    '.oooooooooooo.',
+    '....oo..oo....',
+    '....oo..oo....',
+  ]},
+  spamking: { p: { b: '#2f6ff2', y: '#ffd93d', s: '#c8d0dd', r: '#e6482e' }, g: [
+    '..y..y.y..y...',
+    '..yyyyyyyyy...',
+    '..oyyryryyo...',
+    '.ooooooooooo..',
+    '.osssssssssо..'.replace('о','o'),
+    '.obbbbbbbbbo..',
+    '.obkbbbbkbbo..',
+    '.obbbbbbbbbo..',
+    '.oyyyyyyyyyo..',
+    '.obbokkobbbo..',
+    '.obbbbbbbbbo..',
+    '.osssssssssо..'.replace('о','o'),
+    '.ooooooooooo..',
+    '...oo...oo....',
+  ]},
+};
+
+/* ============================================================
+   PROCEDURAL MEME PIXEL RENDERER
+   ============================================================ */
+const Sprite = {
+  INK: '#26203a',
+  W: 24, H: 26,
+  _cache: new Map(),
+
+  /* ---------- small color helpers ---------- */
+  _hex(c) {
+    const n = parseInt(c.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  },
+  mix(a, b, t) {
+    const A = this._hex(a), B = this._hex(b);
+    const m = A.map((v, i) => Math.round(v + (B[i] - v) * t));
+    return `rgb(${m[0]},${m[1]},${m[2]})`;
+  },
+  lighten(c, t = 0.35) { return this.mix(c, '#ffffff', t); },
+  darken(c, t = 0.3) { return this.mix(c, '#26203a', t); },
+
+  // deterministic tiny rng from a string (deep-fried noise etc.)
+  _seeded(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return () => {
+      h = Math.imul(h ^ (h >>> 15), 2246822519);
+      h = Math.imul(h ^ (h >>> 13), 3266489917);
+      return ((h ^= h >>> 16) >>> 0) / 4294967296;
+    };
   },
 
   /* ------------------------------------------------------------
-     Main entry: full meme SVG from genome phenotype
-     opts: { equip: bool, elder: bool, baby: bool, zombie: bool }
+     Main entry — returns an <img> HTML string (pixel canvas)
+     opts: { equip: bool, stage: 'baby'|'adult'|'elder', size: px }
      ------------------------------------------------------------ */
   memeSVG(meme, opts = {}) {
-    const p = meme.pheno;
-    const hue = DATA.GENES.hue.alleles[p.hue];
-    const gid = 'g' + (this._grad++);
-    const I = this.INK;
-    const light = this.lighten(hue.c2, 0.5);
-    const isGhost = p.face === 'ghost';
     const stage = opts.stage || (typeof Genetics !== 'undefined' ? Genetics.stage(meme) : 'adult');
     const zombie = meme.traits && meme.traits.includes('zombie');
+    const equip = opts.equip !== false ? (meme.equip || {}) : {};
+    const key = JSON.stringify([meme.pheno, stage, zombie, equip.hat, equip.held, meme.id.slice(-4)]);
+    let url = this._cache.get(key);
+    if (!url) {
+      url = this._render(meme, stage, zombie, equip);
+      this._cache.set(key, url);
+      if (this._cache.size > 400) this._cache.delete(this._cache.keys().next().value);
+    }
+    const size = opts.size || 72;
+    return `<img class="px meme-px" src="${url}" style="width:${size}px" alt="" draggable="false">`;
+  },
 
-    let defs = '';
-    if (p.hue === 'rainbow') {
-      defs = `<linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#ff71ce"/><stop offset=".25" stop-color="#fffb96"/>
-        <stop offset=".5" stop-color="#05ffa1"/><stop offset=".75" stop-color="#01cdfe"/>
-        <stop offset="1" stop-color="#b967ff"/></linearGradient>`;
+  _render(meme, stage, zombie, equip) {
+    const p = meme.pheno;
+    const hue = DATA.GENES.hue.alleles[p.hue];
+    const W = this.W, H = this.H;
+    const px = new Array(W * H).fill(null);   // color strings
+    const body = new Set();                    // body-mask indices
+    const idx = (x, y) => y * W + x;
+    const inB = (x, y) => x >= 0 && x < W && y >= 0 && y < H;
+    const set = (x, y, c) => { x = Math.round(x); y = Math.round(y); if (inB(x, y)) px[idx(x, y)] = c; };
+    const addBody = (x, y) => { x = Math.round(x); y = Math.round(y); if (inB(x, y)) body.add(idx(x, y)); };
+    const ellipse = (cx, cy, rx, ry, fn) => {
+      for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++)
+        for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+          const dx = (x - cx) / rx, dy = (y - cy) / ry;
+          if (dx * dx + dy * dy <= 1) fn(x, y);
+        }
+    };
+    const rng = this._seeded(meme.id);
+
+    /* ---- 1. body mask ---- */
+    const isGhost = p.face === 'ghost';
+    let bodyTop = 8;
+    if (isGhost) {
+      ellipse(11.5, 12, 7.5, 5, addBody);
+      for (let y = 12; y <= 20; y++) for (let x = 4; x <= 19; x++) addBody(x, y);
+      // wavy hem
+      for (let x = 4; x <= 19; x++) if ((x - 4) % 4 < 2) addBody(x, 21);
     } else {
-      defs = `<linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="${hue.c1}"/><stop offset="1" stop-color="${hue.c2}"/></linearGradient>`;
+      switch (p.body) {
+        case 'round': ellipse(11.5, 15, 7.6, 7.6, addBody); bodyTop = 8; break;
+        case 'blob':
+          ellipse(11.5, 13.5, 7, 5.5, addBody);
+          ellipse(11.5, 17, 8.2, 5.6, addBody); bodyTop = 8; break;
+        case 'bean':
+          ellipse(13, 13, 6, 5.2, addBody);
+          ellipse(10.5, 17.5, 7, 5.4, addBody); bodyTop = 8; break;
+        case 'square':
+          for (let y = 9; y <= 22; y++) for (let x = 5; x <= 18; x++) {
+            const corner = (x <= 6 || x >= 17) && (y <= 10 || y >= 21);
+            if (!corner) addBody(x, y);
+          }
+          bodyTop = 9; break;
+        case 'tall': ellipse(11.5, 14.5, 5.8, 9, addBody); bodyTop = 6; break;
+        case 'star': {
+          // chunky 5-point star
+          const S = [
+            '.......xx.......',
+            '......xxxx......',
+            '......xxxx......',
+            '.....xxxxxx.....',
+            'xxxxxxxxxxxxxxxx',
+            '.xxxxxxxxxxxxxx.',
+            '..xxxxxxxxxxxx..',
+            '...xxxxxxxxxx...',
+            '...xxxxxxxxxx...',
+            '..xxxxxxxxxxxx..',
+            '..xxxxx..xxxxx..',
+            '.xxxx......xxxx.',
+            '.xxx........xxx.',
+          ];
+          S.forEach((row, y) => { for (let x = 0; x < row.length; x++) if (row[x] === 'x') addBody(x + 4, y + 7); });
+          bodyTop = 7; break;
+        }
+        default: ellipse(11.5, 15, 7.6, 7.6, addBody);
+      }
     }
 
-    const fill = `url(#${gid})`;
-    const bodyOpacity = isGhost ? '0.88' : '1';
-
-    let svg = `<svg viewBox="0 0 100 110" xmlns="http://www.w3.org/2000/svg">` + `<defs>${defs}</defs>`;
-    svg += `<g opacity="${bodyOpacity}">`;
-
-    // shadow
-    svg += `<ellipse cx="50" cy="103" rx="26" ry="5" fill="rgba(43,27,61,.25)"/>`;
-
-    // feet (not for ghost)
+    /* ---- 2. ears / bumps (part of silhouette) ---- */
     if (!isGhost) {
-      svg += `<ellipse cx="38" cy="98" rx="8" ry="6" fill="${hue.c2}" stroke="${I}" stroke-width="3"/>
-              <ellipse cx="62" cy="98" rx="8" ry="6" fill="${hue.c2}" stroke="${I}" stroke-width="3"/>`;
-    }
-
-    // ears / head decorations behind the body
-    svg += this.ears(p.face, fill, hue, I);
-
-    // body
-    svg += this.body(p.body, fill, I, isGhost);
-
-    // pattern overlay
-    svg += this.pattern(p.pattern, hue, I);
-
-    // face-specific base (snout, tie, jaw...)
-    svg += this.faceBase(p.face, hue, light, I);
-
-    // eyes / mouth / extra
-    svg += this.eyes(p.eyes, p.face, I);
-    svg += this.mouth(p.mouth, p.face, I);
-    svg += this.extra(p.extra, I);
-
-    if (zombie) svg += `<path d="M30 40 l8 -4 M34 36 l0 8" stroke="#3dab4a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-      <rect x="0" y="0" width="100" height="110" fill="#3dab4a" opacity=".13"/>`;
-
-    if (stage === 'elder' && p.extra !== 'mustache') {
-      svg += `<path d="M38 66 Q42 74 50 68 Q58 74 62 66" fill="#eee" stroke="${I}" stroke-width="2.5"/>`;
-    }
-    if (stage === 'baby') {
-      svg += `<circle cx="50" cy="66" r="6" fill="#ff9e3d" stroke="${I}" stroke-width="2.5"/>
-              <circle cx="50" cy="66" r="2.4" fill="${I}"/>`;
-    }
-
-    // equipment (emoji, chunky & goofy)
-    if (opts.equip !== false && meme.equip) {
-      if (meme.equip.hat) {
-        const hat = DATA.ITEMS[meme.equip.hat];
-        if (hat) svg += `<text x="50" y="24" font-size="26" text-anchor="middle">${hat.ico}</text>`;
-      }
-      if (meme.equip.held) {
-        const held = DATA.ITEMS[meme.equip.held];
-        if (held) svg += `<text x="85" y="82" font-size="20" text-anchor="middle">${held.ico}</text>`;
+      if (p.face === 'doge') {
+        for (let i = 0; i < 4; i++) for (let x = 0; x <= i; x++) { addBody(6 + x, bodyTop - 4 + i); addBody(17 - x, bodyTop - 4 + i); }
+      } else if (p.face === 'catto') {
+        for (let i = 0; i < 5; i++) for (let x = 0; x <= Math.min(i, 2); x++) { addBody(6 + x, bodyTop - 5 + i); addBody(17 - x, bodyTop - 5 + i); }
+      } else if (p.face === 'frog') {
+        ellipse(7.5, bodyTop - 1.5, 3, 3, addBody);
+        ellipse(16.5, bodyTop - 1.5, 3, 3, addBody);
       }
     }
 
-    svg += `</g></svg>`;
-    return svg;
-  },
+    /* ---- 3. feet ---- */
+    const bodyBottom = isGhost ? 21 : 22;
+    if (!isGhost) {
+      for (let x = 7; x <= 9; x++) { addBody(x, bodyBottom + 1); }
+      for (let x = 14; x <= 16; x++) { addBody(x, bodyBottom + 1); }
+    }
 
-  /* ---------------- body shapes ---------------- */
-  body(shape, fill, I, ghost) {
-    const sw = `stroke="${I}" stroke-width="3.5"`;
-    if (ghost) {
-      return `<path d="M22 60 Q22 26 50 26 Q78 26 78 60 L78 88 L70 80 L62 90 L54 80 L46 90 L38 80 L30 90 L22 80 Z" fill="${fill}" ${sw}/>`;
+    /* ---- 4. fill body with color ---- */
+    const RAINBOW = ['#ff6ba9', '#ffd93d', '#5fd07f', '#4fc4e8', '#a86ae8'];
+    let ys = H, ye = 0;
+    for (const i of body) { const y = Math.floor(i / W); ys = Math.min(ys, y); ye = Math.max(ye, y); }
+    for (const i of body) {
+      const x = i % W, y = Math.floor(i / W);
+      let c;
+      if (p.hue === 'rainbow') {
+        c = RAINBOW[Math.floor((y - ys) / Math.max(1, ye - ys + 1) * RAINBOW.length)];
+      } else if (p.hue === 'deepfried') {
+        c = rng() < 0.28 ? '#ff6a3d' : (rng() < 0.12 ? '#ffd93d' : '#b3372a');
+      } else {
+        const t = (y - ys) / Math.max(1, ye - ys);
+        c = t < 0.34 ? hue.c1 : (t < 0.45 && (x + y) % 2 === 0 ? hue.c1 : hue.c2);
+      }
+      px[i] = c;
     }
-    switch (shape) {
-      case 'round':
-        return `<ellipse cx="50" cy="62" rx="30" ry="32" fill="${fill}" ${sw}/>`;
-      case 'blob':
-        return `<path d="M50 28 C72 28 82 44 80 62 C79 80 70 94 50 94 C30 94 21 80 20 62 C18 44 28 28 50 28 Z" fill="${fill}" ${sw}
-                transform="rotate(-3 50 60)"/>`;
-      case 'bean':
-        return `<path d="M38 30 C60 22 78 38 76 60 C74 84 60 96 44 94 C26 92 20 76 26 58 C30 44 28 34 38 30 Z" fill="${fill}" ${sw}/>`;
-      case 'square':
-        return `<rect x="22" y="32" width="56" height="60" rx="14" fill="${fill}" ${sw}/>`;
-      case 'tall':
-        return `<ellipse cx="50" cy="58" rx="24" ry="38" fill="${fill}" ${sw}/>`;
-      case 'star':
-        return `<path d="M50 18 L61 44 L88 46 L67 63 L74 90 L50 76 L26 90 L33 63 L12 46 L39 44 Z" fill="${fill}" ${sw} stroke-linejoin="round"/>`;
-      default:
-        return `<ellipse cx="50" cy="62" rx="30" ry="32" fill="${fill}" ${sw}/>`;
-    }
-  },
 
-  /* ---------------- patterns ---------------- */
-  pattern(pat, hue, I) {
-    const c = 'rgba(43,27,61,.18)';
-    switch (pat) {
-      case 'spots':
-        return `<circle cx="35" cy="72" r="5" fill="${c}"/><circle cx="63" cy="80" r="4" fill="${c}"/>
-                <circle cx="70" cy="58" r="3.5" fill="${c}"/><circle cx="30" cy="52" r="3" fill="${c}"/>`;
-      case 'stripes':
-        return `<path d="M28 76 Q50 84 72 76" stroke="${c}" stroke-width="6" fill="none" stroke-linecap="round"/>
-                <path d="M30 85 Q50 92 70 85" stroke="${c}" stroke-width="5" fill="none" stroke-linecap="round"/>`;
-      case 'belly':
-        return `<ellipse cx="50" cy="78" rx="16" ry="13" fill="rgba(255,255,255,.55)"/>`;
-      case 'sparkle':
-        return `<text x="30" y="80" font-size="10" opacity=".85">✦</text><text x="62" y="86" font-size="8" opacity=".85">✦</text>
-                <text x="68" y="55" font-size="9" opacity=".85">✦</text>`;
-      default: return '';
+    /* ---- 5. pattern overlay (only on body pixels) ---- */
+    const onBody = (x, y, c) => { if (inB(x, y) && body.has(idx(x, y))) px[idx(x, y)] = c; };
+    const dk = this.darken(hue.c2, 0.32);
+    if (p.pattern === 'spots') {
+      for (const [sx, sy] of [[7, 18], [15, 20], [16, 13], [6, 13]]) {
+        onBody(sx, sy, dk); onBody(sx + 1, sy, dk); onBody(sx, sy + 1, dk); onBody(sx + 1, sy + 1, dk);
+      }
+    } else if (p.pattern === 'stripes') {
+      for (let x = 4; x <= 19; x++) { onBody(x, 18, dk); onBody(x, 19, dk); onBody(x, 21, dk); }
+    } else if (p.pattern === 'belly') {
+      ellipse(11.5, 19, 4, 3.2, (x, y) => onBody(x, y, this.lighten(hue.c1, 0.55)));
+    } else if (p.pattern === 'sparkle') {
+      for (const [sx, sy] of [[7, 17], [15, 19], [16, 12]]) {
+        onBody(sx, sy, '#ffffff'); onBody(sx - 1, sy, '#ffffff'); onBody(sx + 1, sy, '#ffffff');
+        onBody(sx, sy - 1, '#ffffff'); onBody(sx, sy + 1, '#ffffff');
+      }
     }
-  },
 
-  /* ---------------- ears (behind body) ---------------- */
-  ears(face, fill, hue, I) {
-    const sw = `stroke="${I}" stroke-width="3.5"`;
-    switch (face) {
-      case 'doge':
-        return `<path d="M28 40 L22 18 L42 32 Z" fill="${fill}" ${sw} stroke-linejoin="round"/>
-                <path d="M72 40 L78 18 L58 32 Z" fill="${fill}" ${sw} stroke-linejoin="round"/>`;
-      case 'catto':
-        return `<path d="M28 42 L24 16 L46 30 Z" fill="${fill}" ${sw} stroke-linejoin="round"/>
-                <path d="M72 42 L76 16 L54 30 Z" fill="${fill}" ${sw} stroke-linejoin="round"/>
-                <path d="M29 36 L27 24 L39 31 Z" fill="#ffb3d9"/>
-                <path d="M71 36 L73 24 L61 31 Z" fill="#ffb3d9"/>`;
-      case 'frog':
-        return `<circle cx="34" cy="30" r="10" fill="${fill}" ${sw}/>
-                <circle cx="66" cy="30" r="10" fill="${fill}" ${sw}/>`;
-      default: return '';
+    /* ---- 6. catto inner-ear pink ---- */
+    if (p.face === 'catto' && !isGhost) {
+      set(7, bodyTop - 3, '#ff9ec4'); set(16, bodyTop - 3, '#ff9ec4');
+      set(7, bodyTop - 2, '#ff9ec4'); set(16, bodyTop - 2, '#ff9ec4');
     }
-  },
 
-  /* ---------------- face base decorations ---------------- */
-  faceBase(face, hue, light, I) {
-    switch (face) {
-      case 'doge':
-        return `<ellipse cx="50" cy="60" rx="13" ry="10" fill="${light}" stroke="${I}" stroke-width="2.5"/>
-                <ellipse cx="50" cy="56" rx="4.5" ry="3.5" fill="${I}"/>`;
-      case 'catto':
-        return `<path d="M20 56 L34 58 M20 64 L34 62 M80 56 L66 58 M80 64 L66 62" stroke="${I}" stroke-width="2" stroke-linecap="round"/>
-                <path d="M46 58 L50 62 L54 58 Z" fill="#ffb3d9" stroke="${I}" stroke-width="2" stroke-linejoin="round"/>`;
-      case 'stonks':
-        return `<path d="M44 74 L50 80 L56 74 L53 72 L50 76 L47 72 Z" fill="#3a5cd6" stroke="${I}" stroke-width="2" stroke-linejoin="round"/>
-                <path d="M36 88 L48 82 L54 86 L64 78" stroke="#12c94b" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-                <path d="M64 78 l-6 1 l5 5 Z" fill="#12c94b"/>`;
-      case 'chad':
-        return `<path d="M34 68 Q38 80 50 80 Q62 80 66 68" fill="none" stroke="${I}" stroke-width="3"/>
-                <path d="M30 34 Q50 26 70 34" fill="none" stroke="${I}" stroke-width="3"/>`;
-      case 'troll':
-        return '';
-      default: return '';
+    /* ---- 7. outline the silhouette ---- */
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (px[idx(x, y)]) continue;
+      const near = (inB(x + 1, y) && body.has(idx(x + 1, y))) || (inB(x - 1, y) && body.has(idx(x - 1, y)))
+        || (inB(x, y + 1) && body.has(idx(x, y + 1))) || (inB(x, y - 1) && body.has(idx(x, y - 1)));
+      if (near) px[idx(x, y)] = this.INK;
     }
-  },
 
-  /* ---------------- eyes ---------------- */
-  eyes(eyes, face, I) {
-    // frogs have eyes up in the bumps
-    const y = face === 'frog' ? 30 : 46;
-    const lx = face === 'frog' ? 34 : 38, rx = face === 'frog' ? 66 : 62;
-    const white = '#fff';
-    switch (eyes) {
-      case 'normal':
-        return `<circle cx="${lx}" cy="${y}" r="6.5" fill="${white}" stroke="${I}" stroke-width="2.5"/>
-                <circle cx="${rx}" cy="${y}" r="6.5" fill="${white}" stroke="${I}" stroke-width="2.5"/>
-                <circle cx="${lx + 1.5}" cy="${y}" r="2.8" fill="${I}"/><circle cx="${rx + 1.5}" cy="${y}" r="2.8" fill="${I}"/>`;
-      case 'derp':
-        return `<circle cx="${lx}" cy="${y - 1}" r="7.5" fill="${white}" stroke="${I}" stroke-width="2.5"/>
-                <circle cx="${rx}" cy="${y + 1}" r="5.5" fill="${white}" stroke="${I}" stroke-width="2.5"/>
-                <circle cx="${lx - 2}" cy="${y - 3}" r="3" fill="${I}"/><circle cx="${rx + 2}" cy="${y + 2.5}" r="2.4" fill="${I}"/>`;
-      case 'angry':
-        return `<circle cx="${lx}" cy="${y}" r="6" fill="${white}" stroke="${I}" stroke-width="2.5"/>
-                <circle cx="${rx}" cy="${y}" r="6" fill="${white}" stroke="${I}" stroke-width="2.5"/>
-                <circle cx="${lx + 1.5}" cy="${y + 1}" r="2.6" fill="${I}"/><circle cx="${rx - 1.5}" cy="${y + 1}" r="2.6" fill="${I}"/>
-                <path d="M${lx - 7} ${y - 9} L${lx + 6} ${y - 4} M${rx + 7} ${y - 9} L${rx - 6} ${y - 4}" stroke="${I}" stroke-width="3" stroke-linecap="round"/>`;
-      case 'tired':
-        return `<path d="M${lx - 6} ${y} Q${lx} ${y + 5} ${lx + 6} ${y}" fill="none" stroke="${I}" stroke-width="3" stroke-linecap="round"/>
-                <path d="M${rx - 6} ${y} Q${rx} ${y + 5} ${rx + 6} ${y}" fill="none" stroke="${I}" stroke-width="3" stroke-linecap="round"/>
-                <path d="M${lx - 5} ${y + 6} Q${lx} ${y + 9} ${lx + 5} ${y + 6}" fill="none" stroke="rgba(43,27,61,.4)" stroke-width="2"/>
-                <path d="M${rx - 5} ${y + 6} Q${rx} ${y + 9} ${rx + 5} ${y + 6}" fill="none" stroke="rgba(43,27,61,.4)" stroke-width="2"/>`;
-      case 'sparkly':
-        return `<circle cx="${lx}" cy="${y}" r="7.5" fill="${I}"/><circle cx="${rx}" cy="${y}" r="7.5" fill="${I}"/>
-                <circle cx="${lx - 2.5}" cy="${y - 2.5}" r="2.6" fill="#fff"/><circle cx="${rx - 2.5}" cy="${y - 2.5}" r="2.6" fill="#fff"/>
-                <circle cx="${lx + 2.5}" cy="${y + 2.5}" r="1.3" fill="#fff"/><circle cx="${rx + 2.5}" cy="${y + 2.5}" r="1.3" fill="#fff"/>`;
-      case 'mlg':
-        return `<rect x="${lx - 9}" y="${y - 5}" width="18" height="9" rx="1.5" fill="${I}"/>
-                <rect x="${rx - 9}" y="${y - 5}" width="18" height="9" rx="1.5" fill="${I}"/>
-                <rect x="${lx + 9}" y="${y - 4}" width="${rx - lx - 18}" height="3" fill="${I}"/>
-                <rect x="${lx - 6}" y="${y - 3}" width="5" height="2.5" fill="#7ec8ff"/>
-                <rect x="${rx - 6}" y="${y - 3}" width="5" height="2.5" fill="#7ec8ff"/>`;
-      case 'laser':
-        return `<circle cx="${lx}" cy="${y}" r="6" fill="#ff2d2d"/><circle cx="${rx}" cy="${y}" r="6" fill="#ff2d2d"/>
-                <circle cx="${lx}" cy="${y}" r="9" fill="#ff2d2d" opacity=".35"/><circle cx="${rx}" cy="${y}" r="9" fill="#ff2d2d" opacity=".35"/>
-                <circle cx="${lx}" cy="${y}" r="2.5" fill="#fff"/><circle cx="${rx}" cy="${y}" r="2.5" fill="#fff"/>`;
-      default: return '';
-    }
-  },
+    /* ---- 8. face ---- */
+    const I = this.INK;
+    const eyeY = p.face === 'frog' ? bodyTop - 2 : (p.body === 'tall' ? 11 : 12);
+    const lx = p.face === 'frog' ? 7 : 8, rx = p.face === 'frog' ? 16 : 15;
+    const mouthY = p.face === 'doge' ? 17 : 16;
 
-  /* ---------------- mouths ---------------- */
-  mouth(mouth, face, I) {
-    if (face === 'troll') {
-      // the troll grin overrides everything, as is tradition
-      return `<path d="M30 62 Q50 78 70 62 Q66 74 50 76 Q34 74 30 62 Z" fill="#fff" stroke="${I}" stroke-width="2.5"/>
-              <path d="M36 66 L36 71 M43 69 L43 74 M50 70 L50 75 M57 69 L57 74 M64 66 L64 71" stroke="${I}" stroke-width="1.8"/>`;
+    // face base
+    if (p.face === 'doge') {
+      ellipse(11.5, 15.5, 3.6, 2.8, (x, y) => onBody(x, y, this.lighten(hue.c1, 0.5)));
+      set(11, 14, I); set(12, 14, I);
+    } else if (p.face === 'catto') {
+      set(11, 14, '#ff9ec4'); set(12, 14, '#ff9ec4'); set(11, 15, I); set(12, 15, I);
+      set(4, 14, I); set(5, 14, I); set(18, 14, I); set(19, 14, I); // whiskers
+    } else if (p.face === 'stonks') {
+      const line = [[6, 20], [7, 20], [8, 19], [9, 19], [10, 18], [11, 19], [12, 18], [13, 17], [14, 17], [15, 16]];
+      for (const [x, y] of line) onBody(x, y, '#3ddc65');
+      onBody(16, 15, '#3ddc65'); onBody(16, 16, '#3ddc65'); onBody(15, 15, '#3ddc65');
+    } else if (p.face === 'chad') {
+      for (const [x, y] of [[8, 19], [9, 20], [10, 20], [11, 20], [12, 20], [13, 20], [14, 19]]) onBody(x, y, dk);
+      for (let x = 8; x <= 15; x++) onBody(x, bodyTop + 1, dk); // strong brow line
     }
-    const y = face === 'doge' ? 68 : 64;
-    switch (mouth) {
-      case 'smile':
-        return `<path d="M40 ${y} Q50 ${y + 9} 60 ${y}" fill="none" stroke="${I}" stroke-width="3" stroke-linecap="round"/>`;
-      case 'open':
-        return `<ellipse cx="50" cy="${y + 4}" rx="7" ry="8" fill="${I}"/>
-                <ellipse cx="50" cy="${y + 7}" rx="4" ry="3.5" fill="#ff8fa5"/>`;
-      case 'tongue':
-        return `<path d="M40 ${y} Q50 ${y + 8} 60 ${y}" fill="none" stroke="${I}" stroke-width="3" stroke-linecap="round"/>
-                <path d="M48 ${y + 3} Q50 ${y + 12} 56 ${y + 8} L56 ${y + 3} Z" fill="#ff8fa5" stroke="${I}" stroke-width="2"/>`;
-      case 'smug':
-        return `<path d="M42 ${y + 3} Q52 ${y + 7} 62 ${y - 2}" fill="none" stroke="${I}" stroke-width="3" stroke-linecap="round"/>`;
-      case 'flat':
-        return `<path d="M42 ${y + 2} L58 ${y + 2}" stroke="${I}" stroke-width="3" stroke-linecap="round"/>`;
-      case 'fangs':
-        return `<path d="M40 ${y} Q50 ${y + 8} 60 ${y}" fill="none" stroke="${I}" stroke-width="3" stroke-linecap="round"/>
-                <path d="M43 ${y + 1} L45.5 ${y + 7} L48 ${y + 2} Z" fill="#fff" stroke="${I}" stroke-width="1.5"/>
-                <path d="M52 ${y + 2} L54.5 ${y + 7} L57 ${y + 1} Z" fill="#fff" stroke="${I}" stroke-width="1.5"/>`;
-      default: return '';
-    }
-  },
 
-  /* ---------------- extras ---------------- */
-  extra(extra, I) {
-    switch (extra) {
-      case 'blush':
-        return `<ellipse cx="30" cy="56" rx="5" ry="3" fill="#ff8fa5" opacity=".7"/>
-                <ellipse cx="70" cy="56" rx="5" ry="3" fill="#ff8fa5" opacity=".7"/>`;
-      case 'eyebrows':
-        return `<path d="M31 36 Q38 32 45 36" fill="none" stroke="${I}" stroke-width="4" stroke-linecap="round"/>
-                <path d="M55 36 Q62 32 69 36" fill="none" stroke="${I}" stroke-width="4" stroke-linecap="round"/>`;
-      case 'tears':
-        return `<path d="M32 52 q-3 6 0 8 q4 2 5 -3 q0 -3 -5 -5" fill="#7ec8ff" stroke="${I}" stroke-width="1.5"/>
-                <path d="M68 52 q3 6 0 8 q-4 2 -5 -3 q0 -3 5 -5" fill="#7ec8ff" stroke="${I}" stroke-width="1.5"/>`;
-      case 'mustache':
-        return `<path d="M50 62 Q42 58 36 62 Q32 66 38 66 Q45 66 50 62 Q55 66 62 66 Q68 66 64 62 Q58 58 50 62 Z" fill="${I}"/>`;
-      case 'halo':
-        return `<ellipse cx="50" cy="12" rx="14" ry="4.5" fill="none" stroke="#ffd700" stroke-width="4"/>`;
-      case 'horns':
-        return `<path d="M32 26 Q28 16 34 12 Q36 20 40 24 Z" fill="#ff4d6d" stroke="${I}" stroke-width="2.5" stroke-linejoin="round"/>
-                <path d="M68 26 Q72 16 66 12 Q64 20 60 24 Z" fill="#ff4d6d" stroke="${I}" stroke-width="2.5" stroke-linejoin="round"/>`;
-      default: return '';
+    // eyes
+    const eye = (cx) => {
+      switch (p.eyes) {
+        case 'normal':
+          set(cx, eyeY, '#fff'); set(cx + 1, eyeY, '#fff'); set(cx, eyeY + 1, '#fff'); set(cx + 1, eyeY + 1, I);
+          break;
+        case 'derp': {
+          const off = cx === lx ? -1 : 1;
+          set(cx, eyeY + (off > 0 ? 1 : 0), '#fff'); set(cx + 1, eyeY + (off > 0 ? 1 : 0), '#fff');
+          set(cx + (off > 0 ? 1 : 0), eyeY + (off > 0 ? 2 : 1), I);
+          set(cx + (off > 0 ? 0 : 1), eyeY + (off > 0 ? 1 : 0), I);
+          break;
+        }
+        case 'angry':
+          set(cx, eyeY, '#fff'); set(cx + 1, eyeY + 1, I); set(cx, eyeY + 1, '#fff'); set(cx + 1, eyeY, '#fff');
+          set(cx + (cx === lx ? -1 : 2), eyeY - 2, I); set(cx + (cx === lx ? 0 : 1), eyeY - 1, I);
+          break;
+        case 'tired':
+          set(cx, eyeY, I); set(cx + 1, eyeY, I);
+          set(cx, eyeY + 2, this.darken(hue.c2, 0.2)); set(cx + 1, eyeY + 2, this.darken(hue.c2, 0.2));
+          break;
+        case 'sparkly':
+          for (let dy = 0; dy < 3; dy++) for (let dx = -1; dx < 2; dx++) set(cx + dx, eyeY - 1 + dy, I);
+          set(cx - 1, eyeY - 1, '#fff'); set(cx + 1, eyeY + 1, '#fff');
+          break;
+        case 'laser':
+          set(cx, eyeY, '#ff2d2d'); set(cx + 1, eyeY, '#ff2d2d'); set(cx, eyeY + 1, '#ff2d2d'); set(cx + 1, eyeY + 1, '#ff6a6a');
+          set(cx - 1, eyeY, '#ff9d9d'); set(cx + 2, eyeY, '#ff9d9d');
+          break;
+      }
+    };
+    if (p.eyes === 'mlg') {
+      for (let x = lx - 2; x <= rx + 3; x++) set(x, eyeY, I);
+      for (let x = lx - 1; x <= lx + 2; x++) { set(x, eyeY + 1, I); }
+      for (let x = rx - 1; x <= rx + 2; x++) { set(x, eyeY + 1, I); }
+      set(lx, eyeY + 1, '#7ec8ff'); set(rx, eyeY + 1, '#7ec8ff');
+    } else { eye(lx); eye(rx); }
+
+    // mouth (troll grin overrides)
+    if (p.face === 'troll') {
+      for (let x = 7; x <= 16; x++) { set(x, 16, '#fff'); set(x, 17, '#fff'); }
+      for (let x = 8; x <= 15; x++) set(x, 18, '#fff');
+      for (const x of [9, 11, 13, 15]) { set(x, 16, I); set(x, 17, I); }
+      for (let x = 7; x <= 16; x++) set(x, 15, I);
+      set(7, 18, I); set(16, 18, I);
+      for (let x = 9; x <= 14; x++) set(x, 19, I);
+    } else if (stage === 'baby') {
+      // pacifier
+      set(11, mouthY, '#ff8a3d'); set(12, mouthY, '#ff8a3d');
+      set(11, mouthY + 1, '#ff8a3d'); set(12, mouthY + 1, '#ff8a3d');
+      set(10, mouthY, I); set(13, mouthY, I); set(11, mouthY - 1, I); set(12, mouthY - 1, I);
+    } else {
+      switch (p.mouth) {
+        case 'smile':
+          set(9, mouthY, I); set(10, mouthY + 1, I); set(11, mouthY + 1, I); set(12, mouthY + 1, I); set(13, mouthY + 1, I); set(14, mouthY, I);
+          break;
+        case 'open':
+          set(11, mouthY, I); set(12, mouthY, I); set(11, mouthY + 1, I); set(12, mouthY + 1, I);
+          set(11, mouthY + 2, '#ff8fa5'); set(12, mouthY + 2, '#ff8fa5');
+          set(10, mouthY, I); set(13, mouthY, I); set(10, mouthY + 1, I); set(13, mouthY + 1, I);
+          break;
+        case 'tongue':
+          set(9, mouthY, I); set(10, mouthY + 1, I); set(11, mouthY + 1, I); set(12, mouthY + 1, I); set(13, mouthY + 1, I); set(14, mouthY, I);
+          set(12, mouthY + 2, '#ff8fa5'); set(13, mouthY + 2, '#ff8fa5'); set(12, mouthY + 3, '#ff8fa5');
+          break;
+        case 'smug':
+          set(9, mouthY + 1, I); set(10, mouthY + 1, I); set(11, mouthY, I); set(12, mouthY, I); set(13, mouthY - 1, I); set(14, mouthY - 1, I);
+          break;
+        case 'flat':
+          for (let x = 9; x <= 14; x++) set(x, mouthY, I);
+          break;
+        case 'fangs':
+          set(9, mouthY, I); set(10, mouthY + 1, I); set(11, mouthY + 1, I); set(12, mouthY + 1, I); set(13, mouthY + 1, I); set(14, mouthY, I);
+          set(10, mouthY + 2, '#fff'); set(13, mouthY + 2, '#fff');
+          break;
+      }
     }
+
+    /* ---- 9. extras ---- */
+    if (p.extra === 'blush') {
+      set(6, 14, '#ff8fa5'); set(7, 14, '#ff8fa5'); set(16, 14, '#ff8fa5'); set(17, 14, '#ff8fa5');
+    } else if (p.extra === 'eyebrows') {
+      for (let x = lx - 1; x <= lx + 2; x++) set(x, eyeY - 3, I);
+      for (let x = rx - 1; x <= rx + 2; x++) set(x, eyeY - 3, I);
+    } else if (p.extra === 'tears') {
+      set(lx - 1, eyeY + 2, '#7ec8ff'); set(lx - 1, eyeY + 3, '#7ec8ff');
+      set(rx + 2, eyeY + 2, '#7ec8ff'); set(rx + 2, eyeY + 3, '#7ec8ff');
+    } else if (p.extra === 'mustache') {
+      for (let x = 8; x <= 15; x++) set(x, 15, I);
+      set(7, 14, I); set(8, 14, I); set(15, 14, I); set(16, 14, I);
+    } else if (p.extra === 'halo') {
+      for (let x = 9; x <= 14; x++) { set(x, 2, '#ffd93d'); }
+      set(8, 3, '#ffd93d'); set(15, 3, '#ffd93d');
+      for (let x = 9; x <= 14; x++) set(x, 4, '#f0b541');
+    } else if (p.extra === 'horns') {
+      set(6, bodyTop - 3, '#ff4d6d'); set(6, bodyTop - 2, '#ff4d6d'); set(7, bodyTop - 1, '#ff4d6d');
+      set(17, bodyTop - 3, '#ff4d6d'); set(17, bodyTop - 2, '#ff4d6d'); set(16, bodyTop - 1, '#ff4d6d');
+    }
+
+    /* ---- 10. stage / zombie ---- */
+    if (stage === 'elder' && p.extra !== 'mustache' && p.face !== 'troll') {
+      set(7, mouthY, '#e8e4f2'); set(6, mouthY + 1, '#e8e4f2');
+      set(16, mouthY, '#e8e4f2'); set(17, mouthY + 1, '#e8e4f2');
+    }
+    if (zombie) {
+      for (let i = 0; i < W * H; i++) {
+        if (px[i] && px[i] !== I && body.has(i)) px[i] = this.mix(px[i].startsWith('#') ? px[i] : hue.c2, '#5fae5f', 0.4);
+      }
+      set(6, 10, I); set(7, 10, I); set(8, 10, I); set(7, 9, I); set(7, 11, I); // stitch
+    }
+
+    /* ---- 11. compose to canvas (+equipment) ---- */
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+    if (isGhost) ctx.globalAlpha = 0.9;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const c = px[idx(x, y)];
+      if (!c) continue;
+      ctx.fillStyle = c;
+      ctx.fillRect(x, y, 1, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    if (equip.hat && DATA.ITEMS[equip.hat]) {
+      const art = ICONS[DATA.ITEMS[equip.hat].ico];
+      if (art) Pixel.drawGridOn(ctx, art.g, art.p, 7, Math.max(0, bodyTop - 9));
+    }
+    if (equip.held && DATA.ITEMS[equip.held]) {
+      const art = ICONS[DATA.ITEMS[equip.held].ico];
+      if (art) {
+        // draw the held item small at the bottom-right paw
+        const tmp = document.createElement('canvas');
+        tmp.width = 10; tmp.height = 10;
+        Pixel.drawGridOn(tmp.getContext('2d'), art.g, art.p, 0, 0);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(tmp, 16, 17, 8, 8);
+      }
+    }
+
+    return cv.toDataURL();
   },
 
   /* ------------------------------------------------------------
-     Tiny helpers
+     Viruses / tomb / egg
      ------------------------------------------------------------ */
+  virusSrc(artKey) {
+    const def = VIRUS_ART[artKey] || VIRUS_ART.popup;
+    return Pixel.urlFromGrid(def.g, def.p);
+  },
+
+  virusHTML(virusDef, big = false) {
+    const key = virusDef.art || 'popup';
+    const size = big || virusDef.boss ? 68 : 52;
+    return Pixel.img(this.virusSrc(key), size, 'virus-px');
+  },
+
+  TOMB: { p: { s: '#9a97b0', d: '#6f6c88', g: '#5fae5f' }, g: [
+    '...oooooo...',
+    '..osssssso..',
+    '.osssssssso.',
+    '.ossooossso.',
+    '.osssssssdo.',
+    '.ossooossdo.',
+    '.ossssssddo.',
+    '.osssssdddo.',
+    '.ossssssddo.',
+    'oooooooooooo',
+    'gg.gggg.ggg.',
+  ]},
+  tombSVG(size = 64) {
+    return Pixel.img(Pixel.urlFromGrid(this.TOMB.g, this.TOMB.p), size, 'tomb-px');
+  },
+
+  EGG: [
+    { p: { c: '#f5efdf', d: '#d8cfba', s: '#c9e8f5' }, g: [
+      '....oooo....',
+      '...occcco...',
+      '..occcccco..',
+      '.occcccccdo.',
+      '.owccsccado'.replace('a','d'),
+      'owwccccccdo.',
+      'owcccccccdo.',
+      'occccccccddo',
+      'occcsccccddo',
+      'occcccccdddo',
+      '.occcccdddo.',
+      '.occccdddo..',
+      '..ocddddo...',
+      '...oooo.....',
+    ]},
+    { p: { c: '#f5efdf', d: '#d8cfba', k: '#26203a' }, g: [
+      '....oooo....',
+      '...occcco...',
+      '..occkccco..',
+      '.occckcccdo.',
+      '.owcckkccdo.',
+      'owwcckccccо.'.replace('о','o'),
+      'owccckkcccdo',
+      'occccckccddo',
+      'occccckkcddo',
+      'occcccckdddo',
+      '.occcccdddo.',
+      '.occccdddo..',
+      '..ocddddo...',
+      '...oooo.....',
+    ]},
+  ],
+  eggHTML(stage = 0, size = 90) {
+    const e = this.EGG[Math.min(stage, this.EGG.length - 1)];
+    return Pixel.img(Pixel.urlFromGrid(e.g, e.p), size, 'egg-px');
+  },
+
+  // legacy helper used by a few call sites
   memeNode(meme, opts) {
     const d = document.createElement('div');
     d.innerHTML = this.memeSVG(meme, opts);
     return d.firstElementChild;
   },
-
-  virusHTML(virusDef, big = false) {
-    const size = big || virusDef.boss ? 64 : 46;
-    return `<span class="u-emoji" style="font-size:${size}px">${virusDef.emoji}</span>`;
-  },
-
-  tombSVG() {
-    return `<svg viewBox="0 0 100 110"><path d="M28 95 L28 45 Q28 22 50 22 Q72 22 72 45 L72 95 Z"
-      fill="#b9b9c9" stroke="#2b1b3d" stroke-width="3.5"/>
-      <text x="50" y="55" font-size="20" text-anchor="middle" font-weight="bold" fill="#2b1b3d">F</text>
-      <rect x="20" y="93" width="60" height="8" rx="4" fill="#8a8a9d" stroke="#2b1b3d" stroke-width="3"/></svg>`;
-  },
 };
+
+/* attach art keys so combat/menus can render any virus def */
+for (const k of Object.keys(DATA.VIRUSES)) DATA.VIRUSES[k].art = k;
