@@ -731,6 +731,15 @@ Object.assign(ICONS, {
   megafist: { p: { f: '#f2b988', d: '#d99559', y: '#d9b45f' }, g: [
     'y....y....','.y.ffff...','..ffffff..','y.fdffdf..','..ffffff.y','..fffffff.','..ffffff..','y.fffff.y.','.y......y.','..........',
   ]},
+  book: { p: { r: '#e0655e', c: '#f5efdf', d: '#b53222' }, g: [
+    '.oooooooo.','.orrrrrro.','.orcccdro.','.orcccdro.','.orcccdro.','.orcccdro.','.orcccdro.','.orrrrrro.','.oooooooo.','..........',
+  ]},
+  gear: { p: { s: '#9aa2ab', S: '#5f6d70' }, g: [
+    '...s..s...','.s.ssss.s.','.ssSSSSss.','ssSSooSSss','..So..oS..','..So..oS..','ssSSooSSss','.ssSSSSss.','.s.ssss.s.','...s..s...',
+  ]},
+  usbport: { p: { k: '#26203a', s: '#5f6d70' }, g: [
+    '..........','oooooooooo','osssssssso','oskkkkkkso','osssssssso','oooooooooo','..o....o..','..o....o..','..........','..........',
+  ]},
 });
 
 /* ============================================================

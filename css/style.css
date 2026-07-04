@@ -41,11 +41,44 @@
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { height: 100%; font-family: var(--font); color: var(--text); overflow: hidden; background: var(--felt-3); -webkit-font-smoothing: antialiased; user-select: none; }
+html, body { height: 100%; font-family: var(--font); color: var(--text); overflow: hidden; -webkit-font-smoothing: antialiased; user-select: none;
+  background: radial-gradient(120% 100% at 50% 0%, #3b4247, #23282b 70%, #1a1e20); }
 .px, img.px { image-rendering: pixelated; image-rendering: crisp-edges; display: inline-block; vertical-align: middle; }
 .ico-px { width: 15px; height: auto; margin-bottom: -2px; }
 .hidden { display: none !important; }
-#shake-root { position: fixed; inset: 0; will-change: transform; }
+
+/* ============================================================
+   THE PC — monitor + keyboard + mouse on a desk
+   ============================================================ */
+#pc { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 1.5vh 0; }
+#monitor { position: relative; background: linear-gradient(180deg, #3a4145, #23282b); border-radius: 20px; padding: 16px 16px 30px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.55), inset 0 2px 0 rgba(255,255,255,.06); border: 2px solid #171a1c; }
+#screen { position: relative; width: min(92vw, 1360px); height: min(74vh, 800px); border-radius: 8px; overflow: hidden; background: #000;
+  box-shadow: inset 0 0 0 3px #0c0e0f, inset 0 0 24px rgba(0,0,0,.7); }
+#screen-glare { position: absolute; inset: 0; z-index: 500; pointer-events: none; border-radius: 8px;
+  background: linear-gradient(125deg, rgba(255,255,255,.08) 0%, transparent 22%, transparent 78%, rgba(255,255,255,.04) 100%);
+  box-shadow: inset 0 0 60px rgba(0,0,0,.35); }
+#monitor-brand { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; font-size: 11px; font-weight: 900; letter-spacing: 3px; color: #6c757a; }
+#power-led { position: absolute; bottom: 12px; right: 22px; width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); }
+#monitor-neck { width: 90px; height: 26px; background: linear-gradient(180deg, #2b3033, #1c2022); border-radius: 0 0 6px 6px; }
+#monitor-base { width: 220px; height: 16px; background: linear-gradient(180deg, #2b3033, #16191b); border-radius: 10px; box-shadow: 0 8px 20px rgba(0,0,0,.5); }
+#peripherals { display: flex; align-items: flex-start; gap: 26px; margin-top: 14px; }
+#keyboard { position: relative; width: min(60vw, 640px); height: 92px; border-radius: 12px; border: 2px solid #171a1c;
+  background: linear-gradient(180deg, #333a3d, #232829);
+  box-shadow: 0 10px 24px rgba(0,0,0,.45), inset 0 2px 0 rgba(255,255,255,.05);
+  background-image:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 3px, transparent 3px 6px, rgba(0,0,0,.25) 6px 26px),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0 3px, transparent 3px 6px, rgba(0,0,0,.2) 6px 22px),
+    linear-gradient(180deg, #333a3d, #232829);
+  background-size: 26px 22px, 26px 22px, 100% 100%; padding: 12px; }
+#spacebar { position: absolute; left: 28%; right: 28%; bottom: 12px; height: 14px; border-radius: 4px; background: linear-gradient(180deg, #3d4548, #2a2f31); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 0 rgba(0,0,0,.4); }
+#mouse { width: 54px; height: 92px; border-radius: 28px 28px 24px 24px; border: 2px solid #171a1c; background: linear-gradient(180deg, #333a3d, #232829); box-shadow: 0 10px 22px rgba(0,0,0,.45), inset 0 2px 0 rgba(255,255,255,.05); position: relative; }
+#mouse::before { content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 4px; height: 20px; border-radius: 3px; background: rgba(0,0,0,.4); }
+#mouse::after { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 2px; height: 30px; background: rgba(0,0,0,.35); }
+@media (max-height: 620px) { #peripherals, #monitor-neck, #monitor-base { display: none; } #monitor { padding-bottom: 16px; } #screen { height: 82vh; } }
+@media (max-width: 680px) { #mouse { display: none; } #keyboard { width: 82vw; } }
+
+#shake-root { position: absolute; inset: 0; will-change: transform; }
 
 /* ============================================================ DESKTOP ============================================================ */
 #desktop { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
@@ -280,7 +313,7 @@ html, body { height: 100%; font-family: var(--font); color: var(--text); overflo
 /* ============================================================
    BATTLE — cinematic arena
    ============================================================ */
-#battle { position: fixed; inset: 0; z-index: 300; overflow: hidden; background: radial-gradient(130% 100% at 50% 12%, var(--felt-1), var(--felt-3) 82%); }
+#battle { position: absolute; inset: 0; z-index: 300; overflow: hidden; background: radial-gradient(130% 100% at 50% 12%, var(--felt-1), var(--felt-3) 82%); }
 #battle-bg { position: absolute; inset: 0; }
 #battle-bg::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 260px rgba(0,0,0,.55); background: radial-gradient(85% 55% at 50% 92%, rgba(0,0,0,.4), transparent 70%); }
 #stage-camera { position: absolute; inset: 0; transform-origin: 50% 56%; transition: transform .55s cubic-bezier(.4,0,.2,1); will-change: transform; }
@@ -459,3 +492,44 @@ html, body { height: 100%; font-family: var(--font); color: var(--text); overflo
 .anime-cut .ac-face .meme-px { width: 60px; }
 .anime-cut .ac-name { font-size: 34px; font-weight: 900; letter-spacing: 1px; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.5); display: flex; align-items: center; gap: 10px; transform: skewY(4deg); }
 .anime-cut .ac-name img { width: 30px; }
+
+/* class chip on the meme card */
+.class-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 900; background: var(--purple); color: #fff; padding: 2px 7px; border-radius: 5px; margin: 2px 0 4px; }
+.class-chip img { width: 12px; }
+
+/* egg incubation list */
+.egg-list { display: flex; flex-direction: column; gap: 6px; }
+.egg-row { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,.22); border-radius: 9px; padding: 5px 8px; }
+.egg-row .egg-px { width: 34px; }
+.egg-meta { display: flex; flex-direction: column; font-size: 11px; }
+.egg-timer { color: var(--gold); font-weight: bold; display: inline-flex; align-items: center; gap: 4px; }
+.egg-timer img { width: 11px; }
+
+/* meme index (dex) */
+.index-tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+.idx-tab { border: none; cursor: pointer; font-family: var(--font); font-size: 11px; font-weight: 900; padding: 6px 10px; border-radius: 7px; background: var(--panel-2); color: var(--text); box-shadow: var(--emboss-sm); }
+.idx-tab.on { background: var(--blue); }
+.dex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.dex-cell { background: var(--panel-2); border-radius: 10px; padding: 8px 4px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 3px; box-shadow: var(--emboss-sm); min-height: 74px; justify-content: center; }
+.dex-cell.locked { filter: grayscale(1) brightness(.55); }
+.dex-cell .meme-px, .dex-cell .virus-px { width: 44px; }
+.dex-ico { width: 32px; height: 32px; display: grid; place-items: center; }
+.dex-ico img { width: 30px; }
+.dex-q { width: 44px; height: 44px; display: grid; place-items: center; font-size: 26px; font-weight: 900; color: var(--text-dim); }
+.dex-name { font-size: 10px; font-weight: bold; line-height: 1.15; }
+
+/* customize themes */
+.theme-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.theme-cell { cursor: pointer; text-align: center; border-radius: 10px; padding: 6px; box-shadow: var(--emboss-sm); background: var(--panel-2); font-size: 11px; font-weight: bold; }
+.theme-cell.on { outline: 3px solid var(--gold); }
+.theme-swatch { height: 46px; border-radius: 8px; margin-bottom: 5px; border: 2px solid rgba(0,0,0,.35); }
+
+/* USB insert overlay */
+.usb-insert { position: fixed; inset: 0; z-index: 968; display: grid; place-items: center; background: rgba(16,13,24,.75); }
+.usb-insert .usb-slot { position: absolute; left: 50%; top: 46%; transform: translate(-50%,-50%); }
+.usb-insert .usb-slot img { width: 60px; }
+.usb-insert .usb-stick { position: absolute; left: 50%; top: 46%; transform: translate(120px,-50%); animation: usbIn .9s cubic-bezier(.5,0,.4,1) forwards; }
+.usb-insert .usb-stick img { width: 48px; }
+@keyframes usbIn { to { transform: translate(-2px,-50%); } }
+.usb-insert .usb-text { position: absolute; left: 0; right: 0; top: 62%; text-align: center; font-size: 15px; font-weight: 900; letter-spacing: 1px; color: var(--red); text-shadow: 0 2px 0 rgba(0,0,0,.5); animation: usbBlink 1s steps(2) infinite; }
+@keyframes usbBlink { 50% { opacity: .4; } }

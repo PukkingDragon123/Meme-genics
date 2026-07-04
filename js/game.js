@@ -6,8 +6,10 @@
    ============================================================ */
 
 const Game = {
-  SAVE_KEY: 'memegenics_save_v3',
+  SAVE_KEY: 'memegenics_save_v4',
   CAPACITY: 12,
+  HATCH_MS: 18000,      // egg incubation time (seconds)
+  BREED_CD_MS: 24000,   // per-parent breeding cooldown (seconds)
 
   state: null,
 
@@ -24,6 +26,9 @@ const Game = {
       shopStock: [],
       seenIntro: false,
       unlocks: {},
+      eggs: [],
+      dex: { faces: {}, viruses: {} },
+      theme: 'green',
       stats: { battles: 0, wins: 0, virusesDeleted: 0, memesBred: 0, retired: 0 },
     };
   },
@@ -32,6 +37,7 @@ const Game = {
     this.state = this.newState();
     this.state.memes.push(Genetics.starterDoge());
     this.state.memes.push(Genetics.starterFrog());
+    this.discoverAll();
     this.restockShop();
     this.save();
   },
@@ -124,6 +130,7 @@ const Game = {
   addMeme(meme) {
     if (this.state.memes.length >= this.CAPACITY) return false;
     this.state.memes.push(meme);
+    this.discover(meme.pheno.face);
     Desktop.spawnWalker(meme);
     Desktop.updateTray();
     return true;
@@ -148,6 +155,63 @@ const Game = {
     Desktop.updateTray();
     toast(`<b>${U.esc(meme.name)}</b> joined the Hall of Fame. +${payout}`, 3200, 'trophy');
     return payout;
+  },
+
+  /* ---------------- eggs / incubation ---------------- */
+
+  secsLeft(untilMs) { return Math.max(0, Math.ceil((untilMs - Date.now()) / 1000)); },
+
+  tickEggs() {
+    if (!this.state.eggs || !this.state.eggs.length) return;
+    const now = Date.now();
+    let hatched = false;
+    for (const egg of this.state.eggs.slice()) {
+      if (now >= egg.hatchAt) {
+        this.state.eggs.splice(this.state.eggs.indexOf(egg), 1);
+        if (this.state.memes.length < this.CAPACITY) {
+          this.state.memes.push(egg.baby);
+          Desktop.spawnWalker(egg.baby);
+          this.discover(egg.baby.pheno.face);
+          SFX.play('birth');
+          const c = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+          FX.confetti(c.x, c.y, 30); FX.ring(c.x, c.y, '#d9b45f');
+          toast(`<b>${U.esc(egg.baby.name)}</b> hatched!`, 3200, 'egg');
+        } else {
+          toast('An egg hatched but the desktop is full!', 3000, 'warning');
+        }
+        hatched = true;
+      }
+    }
+    if (hatched) { Desktop.updateTray(); Desktop.refreshWindow('breeder'); Desktop.refreshWindow('squad'); this.save(); }
+  },
+
+  /* ---------------- dex / discovery ---------------- */
+
+  discover(face) {
+    if (!this.state.dex) this.state.dex = { faces: {}, viruses: {} };
+    if (!this.state.dex.faces[face]) {
+      this.state.dex.faces[face] = true;
+      const lbl = DATA.GENES.face.alleles[face];
+      if (lbl && this.state.seenIntro) toast(`Index updated: <b>${lbl.label}</b> type discovered!`, 2800, 'roster');
+    }
+  },
+  discoverVirus(id) {
+    if (!this.state.dex) this.state.dex = { faces: {}, viruses: {} };
+    this.state.dex.viruses[id] = true;
+  },
+  discoverAll() {
+    for (const m of this.state.memes) this.discover(m.pheno.face);
+  },
+
+  /* ---------------- theme ---------------- */
+
+  applyTheme(id) {
+    const t = DATA.THEMES[id] || DATA.THEMES.green;
+    const r = document.documentElement.style;
+    r.setProperty('--felt-1', t.felt[0]);
+    r.setProperty('--felt-2', t.felt[1]);
+    r.setProperty('--felt-3', t.felt[2]);
+    this.state.theme = id;
   },
 
   /* ============================================================

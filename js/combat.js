@@ -72,6 +72,7 @@ const Combat = {
     };
     const mkFoe = (fid, i) => {
       const def = DATA.VIRUSES[fid];
+      Game.discoverVirus(fid);
       const atk = Math.round(def.atk * scale);
       return {
         id: U.uid('v'), isMeme: false, def, virusId: fid, side: 'R',
@@ -90,6 +91,8 @@ const Combat = {
     this.placeSide(memes, 'L');
     this.placeSide(foes, 'R');
     for (const u of st.units) this.spawnUnit(u);
+    // Paladin: Bulwark — starts the fight already shielded
+    for (const u of memes) if (u.meme.cls === 'paladin') this.addStatus(u, 'shield', 3, Math.round(u.stats.int * 1.2 + 8));
     this.renderTeamTrack();
   },
 
@@ -323,6 +326,10 @@ const Combat = {
         else { if (crit) dmg = Math.round(dmg * 1.7); this.impact(t, dmg, { crit }); }
       }
     }
+    // Necromancer: Leech — offensive casts drain a little life back
+    if (u.isMeme && u.meme.cls === 'necromancer' && u.hp > 0 && !['heal', 'buff', 'shield', 'debuff'].includes(ab.kind)) {
+      this.healUnit(u, Math.round(u.hpMax * 0.1));
+    }
     this.speedlines(false);
     await U.wait(220);
     if (melee) await this.dashBack(u);
@@ -448,6 +455,7 @@ const Combat = {
       if (sh.power <= 0) this.removeStatus(target, 'shield');
     }
     if (target.isMeme && target.meme.traits.includes('ratiod')) dmg = Math.round(dmg * 1.12);
+    if (target.isMeme && target.meme.cls === 'fighter') dmg = Math.round(dmg * 0.9);   // Fighter: Tough
     dmg = Math.max(0, Math.round(dmg));
     target.hp = Math.max(0, target.hp - dmg);
     this.updateHp(target);
@@ -511,6 +519,7 @@ const Combat = {
         }
       }
       if (u.def.splits) {
+        Game.discoverVirus('miniblob');
         for (let i = 0; i < 2; i++) {
           const mini = { id: U.uid('v'), isMeme: false, def: DATA.VIRUSES.miniblob, virusId: 'miniblob', side: 'R',
             name: DATA.VIRUSES.miniblob.name,
@@ -535,7 +544,10 @@ const Combat = {
     if (u.statuses.some(s => s.id === 'atkUp')) m *= 1.35;
     if (u.statuses.some(s => s.id === 'atkDown')) m *= 0.65;
     if (u.isMeme && u.meme.traits.includes('stale')) m *= 0.9;
-    if (u.isMeme && u.meme.traits.includes('gigachad')) m *= 1.0; // already in atk
+    if (u.isMeme) {
+      if (u.meme.cls === 'mage') m *= 1.12;                               // Mage: Arcane
+      if (u.meme.cls === 'barbarian' && u.hp / u.hpMax < 0.5) m *= 1.3;   // Barbarian: Rage
+    }
     return m;
   },
   addStatus(u, id, turns, power) {
@@ -555,6 +567,10 @@ const Combat = {
   tickStatuses(u) {
     if (u.isMeme && u.meme.traits.includes('wholesome') && u.hp > 0 && u.hp < u.hpMax) {
       u.hp = Math.min(u.hpMax, u.hp + 2); this.updateHp(u);
+    }
+    // Cleric: Faithful — mend the whole team a little each of its turns
+    if (u.isMeme && u.meme.cls === 'cleric' && u.hp > 0) {
+      for (const a of this.livingMemes()) if (a.hp < a.hpMax) { a.hp = Math.min(a.hpMax, a.hp + 2); this.updateHp(a); }
     }
     const burn = u.statuses.find(s => s.id === 'burn');
     if (burn && !(u.isMeme && u.meme.traits.includes('zombie'))) {

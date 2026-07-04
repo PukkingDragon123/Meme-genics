@@ -193,6 +193,38 @@ DATA.ABILITIES = {
 DATA.LEARNABLE = Object.keys(DATA.ABILITIES).filter(k => k !== 'bonk');
 
 /* ============================================================
+   CLASSES — classic tabletop archetypes. Each grants stat mods,
+   a guaranteed unique class ability, and a light passive.
+   ============================================================ */
+DATA.CLASSES = {
+  fighter:     { name: 'Fighter',     ico: 'fist2',      mods: { atk: 3, hp: 6 },          ability: 'megapunch',   passive: 'tough',   desc: 'Frontline bruiser. Takes 10% less damage.' },
+  mage:        { name: 'Mage',        ico: 'fireball',   mods: { int: 4, hp: -2 },         ability: 'fireball',    passive: 'arcane',  desc: 'Glass cannon. Abilities hit 12% harder.' },
+  cleric:      { name: 'Cleric',      ico: 'plus2',      mods: { int: 2, hp: 5 },          ability: 'holylight',   passive: 'faithful',desc: 'Healer. Mends the team each round.' },
+  rogue:       { name: 'Rogue',       ico: 'dagger',     mods: { spd: 2, lck: 4 },         ability: 'shadowstab',  passive: 'sneaky',  desc: 'Assassin. +18% crit chance.' },
+  ranger:      { name: 'Ranger',      ico: 'scope',      mods: { spd: 2, atk: 2 },         ability: 'snipeshot',   passive: null,      desc: 'Precise marksman.' },
+  paladin:     { name: 'Paladin',     ico: 'shield2',    mods: { hp: 8, atk: 1 },          ability: 'barrier',     passive: 'bulwark', desc: 'Holy tank. Starts battle shielded.' },
+  barbarian:   { name: 'Barbarian',   ico: 'hammer2',    mods: { atk: 4, hp: 4, int: -2 }, ability: 'groundpound', passive: 'rage',    desc: 'Reckless smasher. Hits harder when hurt.' },
+  druid:       { name: 'Druid',       ico: 'sprout',     mods: { int: 2, hp: 4 },          ability: 'poisoncloud', passive: null,      desc: 'Nature caster.' },
+  bard:        { name: 'Bard',        ico: 'note',       mods: { lck: 4, int: 2 },         ability: 'rickroll',    passive: null,      desc: 'Support trickster.' },
+  necromancer: { name: 'Necromancer', ico: 'skullmagic', mods: { int: 3 },                 ability: 'drainkiss',   passive: 'leech',   desc: 'Life-drainer. Abilities heal a bit.' },
+  wizard:      { name: 'Wizard',      ico: 'bolt2',      mods: { int: 4, lck: 2, hp: -2 }, ability: 'thunderclap', passive: null,      desc: 'Master of elements.' },
+  monk:        { name: 'Monk',        ico: 'boot2',      mods: { spd: 3, atk: 2 },         ability: 'comboflurry', passive: null,      desc: 'Martial artist.' },
+};
+DATA.CLASS_KEYS = Object.keys(DATA.CLASSES);
+
+/* ============================================================
+   DESKTOP THEMES — PC wallpaper customization (felt palette).
+   ============================================================ */
+DATA.THEMES = {
+  green:    { name: 'Forest',   felt: ['#4f7566', '#3a564b', '#2b3d38'] },
+  midnight: { name: 'Midnight', felt: ['#3a4a6a', '#28324a', '#1b2233'] },
+  sunset:   { name: 'Sunset',   felt: ['#7a5a4a', '#5a3e36', '#3e2a26'] },
+  grape:    { name: 'Grape',    felt: ['#5a4a72', '#3f3552', '#2a2338'] },
+  rose:     { name: 'Rose',     felt: ['#7a5060', '#583a46', '#3a2830'] },
+  mono:     { name: 'Mono',     felt: ['#5a5f61', '#3f4446', '#2a2d2e'] },
+};
+
+/* ============================================================
    STATUS EFFECTS (used lightly by specials)
    ============================================================ */
 DATA.STATUS = {

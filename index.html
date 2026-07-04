@@ -8,7 +8,10 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div id="shake-root">
+ <div id="pc">
+  <div id="monitor">
+   <div id="screen">
+    <div id="shake-root">
 
     <!-- ================= DESKTOP ================= -->
     <div id="desktop">
@@ -61,14 +64,27 @@
       <div id="battle-log"></div>
     </div>
 
-    <!-- ================= OVERLAYS ================= -->
-    <canvas id="fx-canvas"></canvas>
-    <div id="float-layer"></div>
-    <div id="tooltip" class="hidden"></div>
-    <div id="toasts"></div>
-    <div id="modal-layer" class="hidden"></div>
-    <div id="big-banner" class="hidden"></div>
+    </div><!-- /shake-root -->
+    <div id="screen-glare"></div>
+   </div><!-- /screen -->
+   <div id="monitor-brand">MEME-OS 5000</div>
+   <div id="power-led"></div>
+  </div><!-- /monitor -->
+  <div id="monitor-neck"></div>
+  <div id="monitor-base"></div>
+  <div id="peripherals">
+   <div id="keyboard"><div id="spacebar"></div></div>
+   <div id="mouse"></div>
   </div>
+ </div><!-- /pc -->
+
+  <!-- ================= OVERLAYS (viewport-fixed) ================= -->
+  <canvas id="fx-canvas"></canvas>
+  <div id="float-layer"></div>
+  <div id="tooltip" class="hidden"></div>
+  <div id="toasts"></div>
+  <div id="modal-layer" class="hidden"></div>
+  <div id="big-banner" class="hidden"></div>
 
   <script src="js/util.js"></script>
   <script src="js/audio.js"></script>

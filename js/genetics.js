@@ -73,11 +73,13 @@ const Genetics = {
       kills: 0, battles: 0,
     };
     meme.pheno = this.computePhenotype(genome);
-    // ability kit: this type's signature + a random extra (or inherited set)
+    meme.cls = opts.cls || U.pick(DATA.CLASS_KEYS);
+    // ability kit: class move + this type's signature (+ inherited / random)
     if (opts.learned) {
       meme.learned = [...new Set(opts.learned)].slice(0, this.MAX_ABILITIES);
     } else {
       const kit = new Set();
+      kit.add(DATA.CLASSES[meme.cls].ability);
       const sig = DATA.GENES.face.alleles[meme.pheno.face].ability;
       if (sig) kit.add(sig);
       while (kit.size < 2) kit.add(U.pick(DATA.LEARNABLE));
@@ -86,6 +88,8 @@ const Genetics = {
     meme.hpMax = this.effStats(meme).hp;
     return meme;
   },
+
+  classOf(meme) { return DATA.CLASSES[meme.cls] || DATA.CLASSES.fighter; },
 
   MAX_ABILITIES: 6,
   learnAbility(meme) {
@@ -103,7 +107,8 @@ const Genetics = {
         body: ['round', 'bean'], hue: ['gold', 'gold'], pattern: ['plain', 'belly'],
         face: ['doge', 'doge'], eyes: ['normal', 'derp'], mouth: ['smile', 'tongue'], extra: ['none', 'blush'],
       },
-      learned: ['yeet', 'fireball'],
+      cls: 'fighter',
+      learned: ['megapunch', 'yeet'],
       base: { hp: 30, atk: 7, int: 5, spd: 6, lck: 7 },
       traits: ['dank'],
     });
@@ -116,7 +121,8 @@ const Genetics = {
         body: ['blob', 'round'], hue: ['green', 'green'], pattern: ['belly', 'plain'],
         face: ['frog', 'frog'], eyes: ['sparkly', 'normal'], mouth: ['smile', 'open'], extra: ['none', 'none'],
       },
-      learned: ['touchgrass', 'icespike'],
+      cls: 'cleric',
+      learned: ['holylight', 'icespike'],
       base: { hp: 28, atk: 5, int: 8, spd: 5, lck: 6 },
       traits: ['wholesome'],
     });
@@ -143,11 +149,14 @@ const Genetics = {
       genome[g] = [a, b];
     }
 
-    // abilities: inherit a couple from the parents' pools, may mutate a fresh one
+    // class: inherit a parent's class, rare mutation to a new one
+    const cls = U.chance(0.12) ? U.pick(DATA.CLASS_KEYS) : U.pick([mom.cls, dad.cls].filter(Boolean).length ? [mom.cls, dad.cls].filter(Boolean) : DATA.CLASS_KEYS);
+
+    // abilities: inherit a couple from the parents' pools, plus the class move
     const parentPool = [...new Set([...(mom.learned || []), ...(dad.learned || [])])];
-    const learned = new Set();
-    for (const a of U.shuffle(parentPool)) { if (learned.size >= 2) break; learned.add(a); }
-    if (U.chance(this.SPICE_MUTATION) || learned.size === 0) learned.add(U.pick(DATA.LEARNABLE));
+    const learned = new Set([DATA.CLASSES[cls].ability]);
+    for (const a of U.shuffle(parentPool)) { if (learned.size >= 3) break; learned.add(a); }
+    if (U.chance(this.SPICE_MUTATION)) learned.add(U.pick(DATA.LEARNABLE));
 
     // stats: blend + drift (slight upward pressure = generational progress)
     const base = {};
@@ -182,6 +191,12 @@ const Genetics = {
 
   effStats(meme) {
     const s = { ...meme.base, crit: 5, resist: 0, dodge: 0 };
+    // class stat mods + signature passives
+    const cls = DATA.CLASSES[meme.cls];
+    if (cls) {
+      for (const k of Object.keys(cls.mods)) s[k] = (s[k] || 0) + cls.mods[k];
+      if (cls.passive === 'sneaky') s.crit += 18;
+    }
     // traits
     const has = t => meme.traits.includes(t);
     if (has('gigachad')) s.atk += 3;

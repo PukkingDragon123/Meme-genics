@@ -2,11 +2,12 @@
 
 **Breed a bloodline of memes. Send them to delete viruses. Lose them. Breed better ones.**
 
-A goofy parody of *Mewgenics* — you raise **memes on a fake desktop OS**, breed them across
-generations for stats, and fight **computer viruses** in a **cinematic auto-battler** where your
-timing decides the fight. Hand-drawn pixel art, a calm cohesive look, no build step, no
-dependencies, no asset files — every sprite, icon, sound and particle is generated in the browser.
-Just open `index.html`.
+A goofy parody of *Mewgenics*: **defend your PC from viruses.** You're a malware tester — raise
+**memes on a fake desktop OS** (shown on a whole pixel monitor with a keyboard and mouse), breed
+them across generations for stats and **D&D classes**, then **insert an infected flash drive** to
+run a stage and fight the viruses in a **cinematic auto-battler** where your timing decides the
+fight. Hand-drawn pixel art, no build step, no dependencies, no asset files — every sprite, icon,
+sound and particle is generated in the browser. Just open `index.html`.
 
 ![Desktop — memes (including brainrots) living on your fake OS](screenshots/desktop.png)
 
@@ -23,12 +24,13 @@ open index.html
 
 ## The loop
 
-1. **Breed** — fuse two adults in `Breeder2000.exe`; tap the egg and a baby hatches on the spot.
-   Kids inherit one allele per gene from each parent (the dominant one shows), stats blend with a
-   lucky drift, traits pass down, and mutations sneak in rare genes. **Breeding for stronger stats
-   is the whole strategy** — every generation should out-power the last.
+1. **Breed** — fuse two adults in `Breeder2000.exe`. Fusing lays an **egg that incubates for a few
+   seconds** before it hatches, and the parents then rest on a **breeding cooldown**. Kids inherit
+   one allele per gene from each parent (dominant shows), a parent's **class**, abilities, traits,
+   and can mutate rare genes. **Breeding for stronger stats is the whole strategy.**
 2. **Grow** — babies grow into fighters after their first battle (or a little time / a few pets).
-3. **Fight** — pick a stage on the **map**, deploy up to 4 memes.
+3. **Fight** — pick a stage on the **map**, choose up to 4 memes, and **insert the infected flash
+   drive** to begin.
 4. **Retire** — any meme that survives a fight is crowned and **retires** (breed only), so you must
    keep breeding fresh fighters. Fallen memes are permanently dead (necropost or Copium excepted).
 
@@ -53,6 +55,16 @@ Classic types (Doge, Frog, Catto, Troll, Stonks, Chad, Spooky) plus **brainrots*
 pixel models and specials: **Nyan Cat**, **Tung Tung Tung Sahur**, **Tralalero Tralala** (the
 shark), **Bombardiro Crocodilo**, and **Cappuccino Assassino**. Each type has a combat role and a
 signature special (nuke, AoE, multi-hit, heal, buff, debuff or shield).
+
+## Classes, Index & customization
+
+- **12 D&D classes** — Fighter, Mage, Cleric, Rogue, Ranger, Paladin, Barbarian, Druid, Bard,
+  Necromancer, Wizard, Monk. Each grants stat mods, a guaranteed **unique class ability**, and a
+  passive (Fighter shrugs off damage, Cleric mends the team, Rogue crits more, Paladin starts
+  shielded, Necromancer drains life, and more). Classes are inherited when you breed.
+- **Meme Index** — a collection dex of every meme type, virus and move; entries unlock as you
+  discover them.
+- **Customize PC** — swap desktop wallpaper themes.
 
 ## Progression
 
