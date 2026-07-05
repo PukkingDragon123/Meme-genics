@@ -280,6 +280,18 @@ Object.assign(ICONS, {
     '.oooooooo.',
     '..........',
   ]},
+  folder: { p: { y: '#e6b34d', d: '#c48f2f', l: '#f5d98a' }, g: [
+    '.oooo.....',
+    'oyyyyo....',
+    'oyyyyyooo.',
+    'olllllllo.',
+    'oyyyyyyyo.',
+    'oyyyyyyyo.',
+    'oyyyyyyyo.',
+    'oddddddddo',
+    '.oooooooo.',
+    '..........',
+  ]},
   bed: { p: { p: '#e9e2cf', b: '#5b7fd0', w: '#8a7a5a' }, g: [
     '..........',
     '..........',

@@ -40,13 +40,9 @@ const Desktop = {
       e.currentTarget.classList.toggle('off', !on);
     };
 
-    const bed = document.getElementById('obj-bed');
-    if (bed) bed.onclick = () => this.sleepInBed();
-    const roomPc = document.getElementById('obj-pc');
-    if (roomPc) roomPc.onclick = () => this.exitRoom();
-
     for (const m of Game.state.memes) this.spawnWalker(m);
     this.startWalkerLoop();
+    (Game.state.eggs || []).forEach(e => { if (!e.id) e.id = U.uid('egg'); this.spawnEgg(e); });
 
     setInterval(() => {
       const ids = Object.keys(this.walkers);
@@ -60,7 +56,6 @@ const Desktop = {
     document.getElementById('start-ico').innerHTML = Icon.ico('smiley', 20);
     U.qs('#tray-coins .ci').innerHTML = Icon.ico('coin', 16);
     U.qs('#tray-pop .ci').innerHTML = Icon.ico('roster', 16);
-    U.qs('#tray-day .ci').innerHTML = Icon.ico('moon', 15);
     const mail = document.getElementById('tray-mail');
     mail.innerHTML = Icon.ico('mail', 16);
     mail.onclick = () => { SFX.play('open'); this.openDMs(); };
@@ -76,12 +71,12 @@ const Desktop = {
       { ico: 'dna',    label: 'Breeder2000.exe',  fn: () => this.openBreeder() },
       { ico: 'swords', label: 'virus_hunter.exe', fn: () => this.openMissions() },
       { ico: 'roster', label: 'My Memes',         fn: () => this.openSquad() },
+      { ico: 'folder', label: 'Breeding',         fn: () => this.openBreeding() },
       { ico: 'book',   label: 'Meme Index',       fn: () => this.openIndex() },
     ];
     if (Game.isUnlocked('shop'))      apps.push({ ico: 'cart',  label: 'MemeBay',   fn: () => this.openShop() });
     if (Game.isUnlocked('inventory')) apps.push({ ico: 'bag',   label: 'Loot',      fn: () => this.openInventory() });
     if (Game.isUnlocked('graveyard')) apps.push({ ico: 'grave', label: 'Graveyard', fn: () => this.openGraveyard() });
-    apps.push({ ico: 'door', label: 'Leave PC', fn: () => this.enterRoom() });
     apps.push({ ico: 'gear', label: 'Customize', fn: () => this.openCustomize() });
     apps.push({ ico: 'doc', label: 'README.txt', fn: () => this.openHelp() });
     return apps;
@@ -127,14 +122,11 @@ const Desktop = {
     const s = Game.state;
     U.qs('#tray-coins b').textContent = s.coins;
     U.qs('#tray-pop b').textContent = s.memes.length;
-    U.qs('#tray-day b').textContent = s.day || 1;
     const mail = document.getElementById('tray-mail');
     const n = (s.dms || []).length;
     mail.classList.toggle('hidden', n === 0);
     mail.classList.toggle('alert', n > 0);
     mail.innerHTML = Icon.ico('mail', 16) + (n ? ` <b>${n}</b>` : '');
-    const roomDay = document.getElementById('room-day');
-    if (roomDay) roomDay.textContent = 'Day ' + (s.day || 1);
   },
 
   // playfield (monitor screen) dimensions
@@ -706,15 +698,121 @@ const Desktop = {
     const now = Date.now();
     A.breedReadyAt = now + Game.BREED_CD_MS;
     B.breedReadyAt = now + Game.BREED_CD_MS;
-    Game.state.eggs.push({ baby, inbred, hatchAt: now + Game.HATCH_MS, parents: [A.name, B.name] });
+    const egg = { id: U.uid('egg'), baby, inbred, born: now, hatchAt: now + Game.HATCH_MS, parents: [A.name, B.name], parentIds: [A.id, B.id] };
+    Game.state.eggs.push(egg);
     Game.state.stats.memesBred++;
     this.breedSel = [null, null];
+    this.spawnEgg(egg);
     SFX.play('egg');
     const c = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     FX.hearts(c.x, c.y, 10);
-    toast(`An egg is incubating — hatches in ~${Math.round(Game.HATCH_MS / 1000)}s!`, 3400, 'egg');
+    toast(`<b>${U.esc(A.name)}</b> + <b>${U.esc(B.name)}</b> are breeding! An egg is incubating on your desktop — tap it to speed it up.`, 3600, 'egg');
     Game.save();
     this.refreshWindow('breeder');
+    this.refreshWindow('breeding');
+    this.updateTray();
+  },
+
+  /* ============================================================
+     DESKTOP EGGS — incubating eggs sit on the desktop; tap to speed up
+     ============================================================ */
+  eggEls: {},
+
+  eggPos(i) {
+    const cols = Math.max(1, Math.floor((this.SW() - 160) / 96));
+    const col = i % cols, row = Math.floor(i / cols);
+    return { left: 96 + col * 92, top: this.SH() - 210 - row * 104 };
+  },
+
+  spawnEgg(egg) {
+    if (!egg || this.eggEls[egg.id]) return;
+    const el = U.el('div', 'desk-egg');
+    el.innerHTML = `<div class="de-sprite"></div><div class="de-timer"></div><div class="de-tip">tap to speed</div>`;
+    el.onclick = () => {
+      Game.speedEgg(egg, 4);
+      SFX.play('pet');
+      const r = el.getBoundingClientRect();
+      FX.hearts(r.left + r.width / 2, r.top + 6, 4);
+      el.classList.remove('wobble'); void el.offsetWidth; el.classList.add('wobble');
+      this.refreshEggs();
+    };
+    Tooltip.bind(el, () => `<h4>${Icon.ico('egg', 14)} Incubating egg</h4><div>${U.esc(egg.parents[0])} + ${U.esc(egg.parents[1])} are breeding.<br>Tap to hurry the hatch.</div>`);
+    document.getElementById('meme-layer').appendChild(el);
+    this.eggEls[egg.id] = el;
+    this.refreshEggs();
+  },
+
+  removeEgg(id) {
+    const el = this.eggEls[id];
+    if (el) { el.classList.add('hatch-pop'); setTimeout(() => el.remove(), 200); delete this.eggEls[id]; }
+  },
+
+  refreshEggs() {
+    const eggs = (Game.state && Game.state.eggs) || [];
+    // spawn any missing
+    for (const egg of eggs) if (egg.id && !this.eggEls[egg.id]) this.spawnEgg(egg);
+    // remove stale
+    for (const id of Object.keys(this.eggEls)) if (!eggs.some(e => e.id === id)) this.removeEgg(id);
+    // position + timers
+    eggs.forEach((egg, i) => {
+      const el = this.eggEls[egg.id]; if (!el) return;
+      const p = this.eggPos(i);
+      el.style.left = p.left + 'px'; el.style.top = p.top + 'px';
+      const left = Game.secsLeft(egg.hatchAt);
+      const total = Math.max(1, Math.round((egg.hatchAt - (egg.born || (egg.hatchAt - Game.HATCH_MS))) / 1000));
+      const spr = el.querySelector('.de-sprite');
+      if (spr) spr.innerHTML = Sprite.eggHTML(left <= 6 ? 1 : 0, 46);
+      const t = el.querySelector('.de-timer'); if (t) t.textContent = left + 's';
+      el.classList.toggle('ready', left <= 6);
+    });
+  },
+
+  /* ============================================================
+     BREEDING folder — watch eggs incubate; parents are busy
+     ============================================================ */
+  openBreeding() {
+    this.openWindow('breeding', {
+      title: 'Breeding', ico: 'folder', w: 400,
+      build: body => this.renderBreeding(body),
+    });
+  },
+
+  renderBreeding(body) {
+    const eggs = Game.state.eggs || [];
+    const busy = Game.state.memes.filter(m => Game.isBreeding(m));
+    body.innerHTML = `<p style="font-size:12px;opacity:.78;margin-bottom:8px">Eggs incubate here in real time. Parents are <b>busy breeding</b> and can't be sent to fight until they're rested. Tap an egg (here or on the desktop) to speed it up.</p>`;
+    if (!eggs.length) {
+      body.appendChild(U.el('p', '', `<span style="font-size:12px;opacity:.6">No eggs incubating. Fuse two memes in <b>Breeder2000</b> to make one.</span>`));
+    }
+    const list = U.el('div', 'egg-list');
+    for (const egg of eggs) {
+      const left = Game.secsLeft(egg.hatchAt);
+      const total = Math.max(1, Math.round(((egg.hatchAt - (egg.born || (egg.hatchAt - Game.HATCH_MS)))) / 1000));
+      const pct = U.clamp((1 - left / total) * 100, 2, 100);
+      const row = U.el('div', 'egg-row');
+      row.innerHTML = `${Sprite.eggHTML(left <= 6 ? 1 : 0, 44)}
+        <div class="egg-meta">
+          <span>${U.esc(egg.parents[0])} + ${U.esc(egg.parents[1])}</span>
+          <div class="egg-bar"><div style="width:${pct}%"></div></div>
+          <span class="egg-timer">${Icon.ico('hourglass', 11)} hatches in ${left}s</span>
+        </div>
+        <button class="chunky-btn small fun egg-speed">${Icon.ico('bolt', 13)} Speed</button>`;
+      row.querySelector('.egg-speed').onclick = () => { Game.speedEgg(egg, 4); SFX.play('pet'); this.refreshWindow('breeding'); this.refreshEggs(); };
+      list.appendChild(row);
+    }
+    body.appendChild(list);
+    if (busy.length) {
+      body.appendChild(U.el('div', 'card-section-label', `${Icon.ico('hourglass', 13)} Resting (can't fight)`));
+      const grid = U.el('div', 'squad-grid');
+      for (const m of busy) {
+        const cell = U.el('div', 'mini-meme');
+        cell.innerHTML = `${Sprite.memeSVG(m, { size: 52 })}<span class="mm-name">${U.esc(m.name)}</span>
+          <span class="mm-sub">${Icon.ico('hourglass', 11)} ${this.breedCd(m)}s</span>`;
+        cell.onclick = () => { SFX.play('select'); this.openMemeCard(m.id); };
+        grid.appendChild(cell);
+      }
+      body.appendChild(grid);
+    }
   },
 
   /* ============================================================
@@ -818,7 +916,7 @@ const Desktop = {
           const cost = Game.necropostCost(entry);
           row.innerHTML = `${Sprite.tombSVG(44)}
             <div class="g-info"><div class="g-name">${Icon.ico('skull', 15)} ${U.esc(entry.meme.name)} <span style="opacity:.5;font-weight:normal">Gen ${entry.meme.gen} · Lv ${entry.meme.level}</span></div>
-            <div class="g-sub">${U.esc(entry.cause)} on day ${entry.day} — "${U.esc(entry.epitaph)}"</div></div>`;
+            <div class="g-sub">${U.esc(entry.cause)} — "${U.esc(entry.epitaph)}"</div></div>`;
           const btn = U.el('button', 'chunky-btn small fun', entry.meme.necroposted ? 'at peace' : `${Icon.ico('coin', 14)} ${cost}`);
           btn.disabled = entry.meme.necroposted;
           btn.onclick = () => {
@@ -1070,49 +1168,6 @@ const Desktop = {
   },
 
   /* ============================================================
-     3D ROOM — leave the PC to see your room (bed / desk / PC)
-     ============================================================ */
-  enterRoom() {
-    const rv = document.getElementById('room-view');
-    document.getElementById('start-menu').classList.add('hidden');
-    document.getElementById('room-day').textContent = 'Day ' + (Game.state.day || 1);
-    rv.classList.remove('hidden');
-    rv.classList.add('opening');
-    SFX.play('whoosh');
-    setTimeout(() => rv.classList.remove('opening'), 520);
-  },
-
-  exitRoom() {
-    const rv = document.getElementById('room-view');
-    rv.classList.add('closing');
-    SFX.play('close');
-    setTimeout(() => { rv.classList.add('hidden'); rv.classList.remove('closing'); }, 340);
-  },
-
-  sleepInBed() {
-    const rv = document.getElementById('room-view');
-    if (rv.classList.contains('sleeping')) return;
-    rv.classList.add('sleeping');
-    SFX.play('close');
-    setTimeout(() => {
-      const res = Game.sleep();
-      document.getElementById('room-day').textContent = 'Day ' + res.day;
-      this.updateTray();
-      SFX.play('birth');
-      rv.classList.remove('sleeping');
-      const dms = (Game.state.dms || []).length;
-      Modal.show({
-        title: `${Icon.ico('moon', 22)} Day ${res.day}`,
-        bodyHTML: `<div style="text-align:center">
-          <p style="font-size:15px">You slept like a rock. A new day dawns.</p>
-          <p style="font-size:12px;opacity:.78;margin-top:8px">Eggs finished incubating · breeders are rested · found <b>+${res.coins}</b> coins${dms ? ` · <b>${dms}</b> adoption message${dms > 1 ? 's' : ''} waiting!` : ''}</p>
-        </div>`,
-        actions: [{ label: 'Rise & grind', cls: 'fun' }],
-      });
-    }, 1350);
-  },
-
-  /* ============================================================
      MESSAGES — online adopters want your retired memes ($$$)
      ============================================================ */
   openDMs() {
@@ -1122,7 +1177,7 @@ const Desktop = {
         const dms = Game.state.dms || [];
         if (!dms.length) {
           body.innerHTML = `<p style="font-size:13px;opacity:.72;text-align:center;padding:16px 8px">No new messages.<br>
-            <span style="font-size:11px">Retired memes attract online adopters — check back after a fight or a good night's sleep.</span></p>`;
+            <span style="font-size:11px">Retired memes attract online adopters — check back after a fight.</span></p>`;
           return;
         }
         body.innerHTML = `<p style="font-size:12px;opacity:.78;margin-bottom:8px">People online want to adopt your <b>retired</b> memes. Accept for <b>free coins</b> — the meme moves out for good.</p>`;
@@ -1177,27 +1232,41 @@ const Desktop = {
     });
   },
 
+  cardTypeLine(c) {
+    if (c.kind === 'ability') { const a = DATA.ABILITIES[c.id]; return 'SKILL · ' + (a ? a.kind : 'move'); }
+    if (c.kind === 'trait') return 'PASSIVE';
+    return 'STAT UP';
+  },
+
   cardHTML(c, i, assignedName) {
     const rare = c.rarity === 'rare';
-    return `<div class="skill-card ${rare ? 'rare' : 'common'} ${assignedName ? 'used' : 'draggable'}" data-ci="${i}">
-      <div class="sc-kind">${c.kind === 'ability' ? 'SKILL' : c.kind === 'trait' ? 'PASSIVE' : 'STAT UP'}</div>
-      <div class="sc-ico">${Icon.ico(Game.cardIcon(c), 42)}</div>
-      <div class="sc-title">${U.esc(Game.cardTitle(c))}</div>
-      <div class="sc-desc">${U.esc(Game.cardDesc(c))}</div>
-      ${assignedName
-        ? `<div class="sc-assigned">${Icon.ico('crown', 12)} ${U.esc(assignedName)}</div>`
-        : `<button class="chunky-btn small fun sc-assign">Assign</button><div class="sc-grab">drag me ↓</div>`}</div>`;
+    const kindCls = c.kind === 'ability' ? 'k-skill' : c.kind === 'trait' ? 'k-passive' : 'k-stat';
+    return `<div class="skill-card tcg ${rare ? 'rare' : 'common'} ${kindCls} ${assignedName ? 'used' : 'draggable'}" data-ci="${i}" style="--i:${i}">
+      <div class="tcg-glow"></div>
+      <div class="tcg-frame">
+        <div class="tcg-titlebar"><span class="tcg-name">${U.esc(Game.cardTitle(c))}</span><span class="tcg-gem"></span></div>
+        <div class="tcg-art"><div class="tcg-art-ico">${Icon.ico(Game.cardIcon(c), 54)}</div></div>
+        <div class="tcg-type">${this.cardTypeLine(c)}</div>
+        <div class="tcg-text">${U.esc(Game.cardDesc(c))}</div>
+        <div class="tcg-foot">${assignedName
+          ? `<div class="sc-assigned">${Icon.ico('crown', 12)} ${U.esc(assignedName)}</div>`
+          : `<button class="chunky-btn small fun sc-assign">Assign</button>`}</div>
+      </div>
+    </div>`;
   },
 
   renderPack(body) {
     const ps = this.packState;
     if (!ps) { this.closeWindow('pack'); return; }
+    if (ps.phase !== 'open') { this.renderSealed(body); return; }
+    const dealing = !ps.dealt;
     body.innerHTML = `
-      <p class="pack-hint">${ps.tutorial ? 'Welcome! Every meme starts with just a Basic Strike. Here is your first <b>Skill Card Pack</b>. ' : ''}<b>Drag</b> a card onto a meme below to teach it — or tap <b>Assign</b>. Skills add combat moves (max <b>${Genetics.MAX_ABILITIES}</b>, replaceable); commons are stat-ups or passives.</p>
-      <div class="card-grid" id="pack-cards"></div>
+      <p class="pack-hint">${ps.tutorial ? 'Nice rip! ' : ''}<b>Drag</b> a card onto a meme below to teach it — or tap <b>Assign</b>. Skills add combat moves (max <b>${Genetics.MAX_ABILITIES}</b>, replaceable); commons are stat-ups or passives.</p>
+      <div class="card-grid${dealing ? ' dealing' : ''}" id="pack-cards"></div>
       <div class="pack-divider">${Icon.ico('roster', 13)} drag a card onto a meme</div>
       <div class="squad-grid" id="pack-memes"></div>
       <div class="pack-foot"></div>`;
+    ps.dealt = true;
     const grid = body.querySelector('#pack-cards');
     ps.cards.forEach((c, i) => {
       const wrap = U.el('div');
@@ -1226,6 +1295,35 @@ const Desktop = {
       setTimeout(() => this.drainPacks(), 240);   // chain to the next pack if any
     };
     body.querySelector('.pack-foot').appendChild(done);
+  },
+
+  // sealed foil pack — rip it open to reveal the cards
+  renderSealed(body) {
+    const ps = this.packState;
+    body.innerHTML = `
+      <p class="pack-hint">${ps.tutorial ? 'Your first <b>Skill Card Pack</b>! ' : ''}A sealed pack of <b>4 skill cards</b>. Rip it open!</p>
+      <div class="pack-sealed" id="pack-sealed" title="Rip it open!">
+        <div class="ps-top"></div>
+        <div class="ps-foil">
+          <div class="ps-logo">${Icon.ico('cards', 52)}<span>SKILL PACK</span></div>
+          <div class="ps-shine"></div>
+        </div>
+      </div>
+      <div class="pack-foot"><button class="chunky-btn fun big" id="pack-rip">${Icon.ico('cards', 18)} RIP OPEN</button></div>`;
+    const doRip = () => {
+      if (ps.phase === 'ripping') return;
+      ps.phase = 'ripping';
+      const sealed = body.querySelector('#pack-sealed');
+      sealed.classList.add('ripped');
+      const rip = body.querySelector('#pack-rip'); if (rip) rip.disabled = true;
+      SFX.play('whoosh'); setTimeout(() => SFX.play('open'), 130);
+      const r = sealed.getBoundingClientRect();
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      FX.confetti(cx, cy, 26); FX.stars(cx, cy); FX.ring(cx, cy, '#f0b541');
+      setTimeout(() => { ps.phase = 'open'; ps.dealt = false; this.renderPack(body); }, 680);
+    };
+    body.querySelector('#pack-sealed').onclick = doRip;
+    body.querySelector('#pack-rip').onclick = doRip;
   },
 
   // pointer-based drag (works on mouse + touch)
@@ -1348,7 +1446,7 @@ const Desktop = {
         body.innerHTML = `
         <div style="font-size:13px;line-height:1.65">
           <p><b>MEME-GENICS</b> — your desktop is alive with memes, and the viruses want it. It plays like Mewgenics: breed a bloodline, send them to fight, retire them, breed better ones.</p>
-          <p style="margin-top:8px"><b>THE LOOP:</b> pair two memes in Breeder2000 (an egg hatches) &rarr; insert the infected flash drive to run a stage &rarr; clear it, open a <b>Skill Card Pack</b> &rarr; teach cards to your memes. Click <b>Leave PC</b> to visit your room and sleep in the <b>bed</b> to skip a day (eggs hatch, breeders rest).</p>
+          <p style="margin-top:8px"><b>THE LOOP:</b> pair two memes in Breeder2000 &rarr; an <b>egg</b> incubates on your desktop (click it to speed it up) while the parents rest &rarr; insert the infected flash drive to run a stage &rarr; clear it, rip open a <b>Skill Card Pack</b> &rarr; drag cards onto your memes.</p>
           <p style="margin-top:8px"><b>SKILLS:</b> every meme starts with only a <b>Basic Strike</b>. Clearing a stage drops a pack of <b>4 cards</b> — some are new <b>combat skills</b>, others are <b>stat-ups</b> or <b>passives</b> (commons). Assign each card to a meme. Kids inherit a couple of their parents' learned skills.</p>
           <p style="margin-top:8px"><b>ENERGY &amp; RETIREMENT:</b> each meme has <b>5 stages of energy</b>. Spend it all and the meme <b>retires</b> — it can only breed now, never fight. Retired memes attract <b>online adopters</b> who DM you to buy them for <b>free coins</b> (check Messages). Keep breeding fresh fighters — this is the heart of the game.</p>
           <p style="margin-top:8px"><b>BREEDING:</b> kids inherit one allele per gene from each parent — the dominant one shows. Body shapes, sizes, colors, stats, traits and class all pass down, and mutations sneak in rare genes (RAINBOW! ABSOLUTE UNIT!). Related parents = a <b>Reposted</b> baby. Gross.</p>
@@ -1375,7 +1473,7 @@ const Desktop = {
         </div>
         <p style="font-size:13px">Pet your memes. Breed dank bloodlines. Delete evil viruses.<br>
         Memes start with just a <b>Basic Strike</b> — clear a stage to open a <b>Skill Card Pack</b> and teach them new moves. Each meme has <b>5 stages of energy</b>, then it <b>retires</b> to breed the next generation.</p>
-        <p style="font-size:12px;opacity:.6;margin-top:6px">(psst: click <b>Leave PC</b> to see your room and sleep in the bed to skip a day)</p>
+        <p style="font-size:12px;opacity:.6;margin-top:6px">(psst: read README.txt on the desktop for the full manual)</p>
       </div>`,
       actions: [{ label: "LET'S GO", cls: 'fun', fn: () => {
         Game.state.seenIntro = true; Game.save(); SFX.startMusic();

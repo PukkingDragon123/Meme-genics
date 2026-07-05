@@ -21,11 +21,15 @@ window.addEventListener('DOMContentLoaded', () => {
     Desktop.showIntro();
   }
 
-  // 1s tick: incubate eggs + refresh live countdowns in the breeder
+  // 1s tick: incubate eggs + refresh live countdowns + desktop egg timers
   setInterval(() => {
     if (typeof Combat !== 'undefined' && Combat.state && !Combat.state.over) return;
     Game.tickEggs();
-    if (Desktop.windows['breeder'] && Game.state.eggs.length) Desktop.refreshWindow('breeder');
+    Desktop.refreshEggs();
+    if (Game.state.eggs.length) {
+      if (Desktop.windows['breeder']) Desktop.refreshWindow('breeder');
+      if (Desktop.windows['breeding']) Desktop.refreshWindow('breeding');
+    }
   }, 1000);
 
   // Browsers require a user gesture before audio — start music on first click.

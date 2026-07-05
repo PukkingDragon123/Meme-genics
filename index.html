@@ -30,7 +30,6 @@
         <div id="tray">
           <span id="tray-coins" class="tray-chip" title="Dogecoins"><span class="ci"></span> <b>0</b></span>
           <span id="tray-pop" class="tray-chip" title="Memes on your desktop"><span class="ci"></span> <b>0</b>/12</span>
-          <span id="tray-day" class="tray-chip" title="Day counter"><span class="ci"></span> Day <b>1</b></span>
           <button id="tray-mail" class="tray-chip tray-btn hidden" title="Adoption messages"></button>
           <button id="tray-sound" class="tray-chip tray-btn" title="Toggle sound"></button>
           <button id="tray-music" class="tray-chip tray-btn" title="Toggle music"></button>
@@ -43,12 +42,17 @@
 
     <!-- ================= BATTLE (cinematic arena) ================= -->
     <div id="battle" class="hidden">
-      <div id="battle-bg"></div>
+      <div id="battle-bg">
+        <div class="bg-layer bg-far"></div>
+        <div class="bg-layer bg-mid"></div>
+        <div class="bg-layer bg-near"></div>
+      </div>
       <div id="cine-top" class="cine-bar"></div>
       <div id="cine-bot" class="cine-bar"></div>
       <div id="stage-camera">
         <div id="arena">
           <div id="arena-floor"></div>
+          <div id="arena-props"></div>
           <div id="speedlines"></div>
           <div id="arena-units"></div>
         </div>
@@ -69,48 +73,8 @@
     </div><!-- /shake-root -->
     <div id="screen-glare"></div>
    </div><!-- /screen -->
-   <div id="monitor-brand">MEME-OS 5000</div>
-   <div id="power-led"></div>
   </div><!-- /monitor -->
-  <div id="monitor-neck"></div>
-  <div id="monitor-base"></div>
-  <div id="peripherals">
-   <div id="keyboard"><div id="spacebar"></div></div>
-   <div id="mouse"></div>
-  </div>
  </div><!-- /pc -->
-
-  <!-- ================= 3D ROOM (leave the PC) ================= -->
-  <div id="room-view" class="hidden">
-    <div id="room-scene">
-      <div id="room-space">
-        <div class="room-face room-floor"></div>
-        <div class="room-face room-wall wall-back"></div>
-        <div class="room-face room-wall wall-left"></div>
-        <div class="room-rug"></div>
-        <!-- bed -->
-        <div class="room-obj obj-bed" id="obj-bed" title="Sleep — skip to the next day">
-          <div class="bx bx-top"></div><div class="bx bx-front"></div><div class="bx bx-side"></div>
-          <div class="bed-pillow"></div><div class="bed-quilt"></div>
-          <div class="obj-tag">Bed</div>
-        </div>
-        <!-- desk + PC -->
-        <div class="room-obj obj-desk">
-          <div class="bx bx-top"></div><div class="bx bx-front"></div><div class="bx bx-side"></div>
-        </div>
-        <div class="room-obj obj-pc" id="obj-pc" title="Sit back down at the PC">
-          <div class="pc-screen"></div><div class="pc-neck"></div><div class="pc-base"></div>
-          <div class="obj-tag">Use PC</div>
-        </div>
-        <div class="room-obj obj-lamp"><div class="lamp-shade"></div><div class="lamp-pole"></div></div>
-        <div class="room-obj obj-plant"><div class="plant-pot"></div><div class="plant-leaf l1"></div><div class="plant-leaf l2"></div><div class="plant-leaf l3"></div></div>
-      </div>
-    </div>
-    <div id="room-ui">
-      <div id="room-day">Day 1</div>
-      <div id="room-hint">Click the <b>bed</b> to sleep &amp; skip a day · Click the <b>PC</b> to get back to work</div>
-    </div>
-  </div>
 
   <!-- ================= OVERLAYS (viewport-fixed) ================= -->
   <canvas id="fx-canvas"></canvas>

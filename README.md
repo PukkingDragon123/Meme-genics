@@ -3,11 +3,11 @@
 **Breed a bloodline of memes. Send them to delete viruses. Lose them. Breed better ones.**
 
 A goofy parody of *Mewgenics*: **defend your PC from viruses.** You're a malware tester — raise
-**memes on a fake desktop OS** (shown on a whole pixel monitor with a keyboard and mouse), breed
-them across generations for stats and **D&D classes**, then **insert an infected flash drive** to
-run a stage and fight the viruses in a **cinematic auto-battler** where your timing decides the
-fight. Hand-drawn pixel art, no build step, no dependencies, no asset files — every sprite, icon,
-sound and particle is generated in the browser. Just open `index.html`.
+**memes on a fake full-screen desktop OS**, breed them across generations for stats and **D&D
+classes**, then **insert an infected flash drive** to run a stage and fight the viruses in a
+**cinematic anime auto-battler** where your timing decides the fight. Hand-drawn pixel art, no build
+step, no dependencies, no asset files — every sprite, icon, sound and particle is generated in the
+browser. Just open `index.html`.
 
 ![Desktop — memes (including brainrots) living on your fake OS](screenshots/desktop.png)
 
@@ -24,30 +24,32 @@ open index.html
 
 ## The loop
 
-1. **Breed** — fuse two adults in `Breeder2000.exe`. Fusing lays an **egg that incubates for a few
-   seconds** before it hatches, and the parents then rest on a **breeding cooldown**. Kids inherit
-   one allele per gene from each parent (dominant shows) — **body shape, size**, color, class, a
-   couple of learned skills, traits — and can mutate rare genes. **Breeding for stronger stats is
-   the whole strategy.**
+1. **Breed** — fuse two adults in `Breeder2000.exe`. Fusing lays an **egg that incubates in real
+   time** on your desktop — **tap the egg to speed up hatching** — while both parents are **busy
+   breeding and can't fight** until they've rested (watch it all in the **Breeding** folder). Kids
+   inherit one allele per gene from each parent (dominant shows) — **body shape, size**, color,
+   class, up to two learned skills, traits — and can mutate rare genes. **Breeding for stronger
+   stats is the whole strategy.**
 2. **Grow** — babies grow into fighters after their first battle (or a little time / a few pets).
 3. **Fight** — pick a stage on the **map**, choose up to 4 memes, and **insert the infected flash
    drive** to begin.
-4. **Unlock skills** — clearing a stage drops a **Skill Card Pack** (4 cards): new combat skills,
-   or common **stat-ups / passives**. Assign each to a meme. Memes start with only a Basic Strike.
+4. **Unlock skills** — clearing a stage drops a **Skill Card Pack**: **rip it open** and **drag**
+   each of the 4 cards — real TCG-style cards — onto a meme. Some are new combat skills, others are
+   common **stat-ups / passives**. Memes start with only a Basic Strike and hold **2 skills max**
+   (a new skill can replace an old one).
 5. **Retire** — every meme has **5 stages of energy** (shown as a bar). Spend it all and the meme
    **retires** (breed only), so you must keep breeding fresh fighters. Retired memes attract
    **online adopters** who DM you to buy them for **free coins**. Fallen memes are permanently dead
    (necropost or Copium excepted).
 
-**Leave the PC** to see your **3D room** — click the **bed** to sleep and skip a day (eggs finish,
-breeders rest), or the **PC** to get back to work. A **day counter** ticks in the taskbar.
-
 ## Combat — cinematic auto-battler + 20 skill mini-games
 
-Fights play out automatically by **ZOOM** (speed) order — memes **leap** across themed **zone**
-battlefields to clash, the camera zooms and pans to the action, and hits kick up dust, rings and
-screen shake. A live **team tracker** shows your memes' health the whole time. You jump in with
-skill through **20 distinct mini-games** — every attack and parry feels different:
+Fights play out automatically by **ZOOM** (speed) order across themed **zone** battlefields with
+parallax backdrops and a glowing horizon. Memes **run up, leap and spin** into **mid-air clashes**
+(with a freeze-frame on impact), **dodge** attacks with an afterimage, and the camera zooms and pans
+to the action while hits kick up dust, rings and screen shake. A live **team tracker** shows your
+memes' health the whole time. You jump in with skill through **20 distinct mini-games** — every
+attack and parry feels different:
 
 - **STRIKE / TRACER / QUICKDRAW** — timing games: stop the marker, catch the bolt, wait then strike.
 - **MASH / OVERLOAD / FLURRY** — button-hammering: fill the bar, out-mash the decay, alternate keys.

@@ -19,7 +19,6 @@ const Game = {
   newState() {
     return {
       coins: 40,
-      day: 1,
       memes: [],
       graveyard: [],
       inventory: {},
@@ -71,7 +70,9 @@ const Game = {
 
   getMeme(id) { return this.state.memes.find(m => m.id === id); },
   aliveAdults() { return this.state.memes.filter(m => Genetics.stage(m) !== 'baby'); },
-  deployable() { return this.state.memes.filter(m => Genetics.stage(m) !== 'baby' && !m.retired); },
+  // a meme currently making a baby is busy and can't be sent to fight
+  isBreeding(m) { return (m.breedReadyAt || 0) > Date.now(); },
+  deployable() { return this.state.memes.filter(m => Genetics.stage(m) !== 'baby' && !m.retired && !this.isBreeding(m)); },
 
   /* ---------------- unlocks ---------------- */
 
@@ -286,30 +287,16 @@ const Game = {
     this.save();
   },
 
-  /* ---------------- sleep / skip a day ---------------- */
-
-  sleep() {
-    this.state.day = (this.state.day || 1) + 1;
-    const now = Date.now();
-    // a good night's rest: eggs finish incubating, parents are ready again
-    for (const egg of this.state.eggs) egg.hatchAt = Math.min(egg.hatchAt, now);
-    for (const m of this.state.memes) { if (m.breedReadyAt) m.breedReadyAt = 0; if (!m.matured) m.matured = true; }
-    // overnight coin trickle + fresh shop
-    const trickle = U.randInt(5, 14);
-    this.addCoins(trickle, null);
-    if (this.isUnlocked('shop')) this.restockShop();
-    // people online browse overnight and may DM to adopt a retired meme
-    if (U.chance(0.75)) this.rollAdoption();
-    this.tickEggs();
-    Desktop.refreshAllWindows();
-    Desktop.updateTray();
-    this.save();
-    return { day: this.state.day, coins: trickle };
-  },
-
   /* ---------------- eggs / incubation ---------------- */
 
   secsLeft(untilMs) { return Math.max(0, Math.ceil((untilMs - Date.now()) / 1000)); },
+
+  // click an egg to hurry it along
+  speedEgg(egg, secs = 4) {
+    if (!egg) return;
+    egg.hatchAt = Math.max(Date.now(), (egg.hatchAt || 0) - secs * 1000);
+    this.tickEggs();
+  },
 
   tickEggs() {
     if (!this.state.eggs || !this.state.eggs.length) return;
@@ -318,6 +305,7 @@ const Game = {
     for (const egg of this.state.eggs.slice()) {
       if (now >= egg.hatchAt) {
         this.state.eggs.splice(this.state.eggs.indexOf(egg), 1);
+        if (egg.id) Desktop.removeEgg(egg.id);
         if (this.state.memes.length < this.CAPACITY) {
           this.state.memes.push(egg.baby);
           Desktop.spawnWalker(egg.baby);
@@ -332,7 +320,8 @@ const Game = {
         hatched = true;
       }
     }
-    if (hatched) { Desktop.updateTray(); Desktop.refreshWindow('breeder'); Desktop.refreshWindow('squad'); this.save(); }
+    if (hatched) { Desktop.updateTray(); Desktop.refreshWindow('breeder'); Desktop.refreshWindow('breeding'); Desktop.refreshWindow('squad'); this.save(); }
+    if (typeof Desktop !== 'undefined' && Desktop.refreshEggs) Desktop.refreshEggs();
   },
 
   /* ---------------- dex / discovery ---------------- */

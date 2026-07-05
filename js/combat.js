@@ -460,7 +460,10 @@ const Combat = {
       const rfl = Math.max(1, Math.round(u.stats.atk * 0.4));
       this.impact(u, rfl, { small: true });
     } else if (grade === 'good') {
-      this.clashBurst(cc.x, cc.y - 10, '#4bc292'); this.freeze(80);
+      // slick dodge — weave the attack for a partial evade
+      this.dodgeMove(target);
+      floatText(cc.x, cc.y - 56, 'DODGE!', { color: '#4bc292', size: 20 });
+      SFX.play('whoosh'); this.freeze(70);
     }
     if (dmg > 0) this.impact(target, dmg, { incoming: true });
     await U.wait(240);
@@ -507,6 +510,20 @@ const Combat = {
     b.classList.add('hitstop');
     setTimeout(() => b.classList.remove('hitstop'), ms);
   },
+
+  // quick evasive sidestep with a fading afterimage
+  dodgeMove(u) {
+    if (!u || !u.el) return;
+    const body = u.el.querySelector('.au-body');
+    if (body) {
+      const ghost = body.cloneNode(true);
+      ghost.classList.add('dodge-ghost');
+      u.el.appendChild(ghost);
+      setTimeout(() => ghost.remove(), 360);
+    }
+    u.el.classList.remove('dodging'); void u.el.offsetWidth; u.el.classList.add('dodging');
+    setTimeout(() => u.el && u.el.classList.remove('dodging'), 380);
+  },
   async dashBack(u) {
     u.el.classList.add('jumping');
     u.el.classList.remove('dashing');
@@ -517,10 +534,12 @@ const Combat = {
 
   impact(target, dmg, opts = {}) {
     if (!target || target.hp <= 0) { if (!opts.incoming) return; }
-    // dodge (blessed)
-    if (target.isMeme && target.meme.traits.includes('blessed') && U.chance(0.12) && !opts.incoming) {
+    // dodge (blessed) — a slick sidestep with an afterimage
+    if (target.isMeme && target.meme.traits.includes('blessed') && U.chance(0.14) && !opts.incoming) {
       const c = centerOf(target.el);
-      floatText(c.x, c.y - 50, 'DODGE', { color: '#4bc292', size: 20 });
+      this.dodgeMove(target);
+      floatText(c.x, c.y - 50, 'DODGE!', { color: '#4bc292', size: 22 });
+      SFX.play('whoosh');
       return;
     }
     // shield absorb
