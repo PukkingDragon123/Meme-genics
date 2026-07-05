@@ -76,6 +76,11 @@ DATA.GENES = {
       capp:   { dom: 2, label: 'Cappuccino', ability: 'lastlaugh', role: 'assassin', full: true, special: { name: 'Assassino',  kind: 'nuke',   cd: 3, mag: false } },
       croco:  { dom: 2, label: 'Bombardiro', ability: 'deepfry', role: 'bomber', full: true, special: { name: 'Bombardiro', kind: 'aoe',    cd: 3, mag: true } },
       ghost:  { dom: 1, label: 'Spooky', rare: true, ability: 'unoreverse', role: 'trickster', special: { name: 'UNO Reverse', kind: 'shield', cd: 3, mag: true } },
+      // ----- tamed enemies: playable memes that use the virus models (pack-only, rare) -----
+      trojan: { dom: 1, label: 'Trojan (tamed)', rare: true, ability: 'banhammer', role: 'tank',    full: true, special: { name: 'Trojan Charge', kind: 'nuke',  cd: 3, mag: false } },
+      spyder: { dom: 1, label: 'Spyder',         rare: true, ability: 'zoomies',   role: 'striker', full: true, special: { name: 'Keylog Combo', kind: 'multi', cd: 3, mag: false } },
+      drone:  { dom: 1, label: 'Drone',          rare: true, ability: 'icespike',  role: 'mage',    full: true, special: { name: 'Swarm Strike', kind: 'aoe',   cd: 3, mag: true } },
+      wormie: { dom: 1, label: 'Wormie',         rare: true, ability: 'deepfry',   role: 'bruiser', full: true, special: { name: 'Burrow Bite',  kind: 'dot',   cd: 3, mag: false } },
     }
   },
   eyes: {
@@ -288,36 +293,60 @@ DATA.VIRUSES = {
   drone:   { name: 'Botnet Drone', hp: 16, atk: 6, spd: 8, xp: 5, bounty: 4, flavor: 'One of ten thousand. All named Kevin.' },
   adware:  { name: 'Adware Broadcaster', hp: 28, atk: 5, spd: 4, xp: 14, bounty: 12, flavor: 'HOT SINGLES IN YOUR AREA.' },
   miner:   { name: 'Crypto Miner', hp: 30, atk: 4, spd: 3, xp: 12, bounty: 20, flavor: 'Steals coins. Eats your frame rate.' },
+  cookie:  { name: 'Cookie Popup', hp: 20, atk: 5, spd: 5, xp: 6, bounty: 5, art: 'popup', flavor: 'We value your privacy (we do not).' },
+  toolbar: { name: 'Browser Toolbar', hp: 34, atk: 6, spd: 3, xp: 11, bounty: 9, tanky: true, art: 'trojan', flavor: 'You installed 14 of these somehow.' },
+  deadlink:{ name: 'Dead Link 404', hp: 22, atk: 7, spd: 7, xp: 9, bounty: 8, art: 'phish', flavor: 'This page does not exist. Neither do you now.' },
+  rootkit: { name: 'Rootkit', hp: 54, atk: 10, spd: 4, xp: 18, bounty: 16, tanky: true, flavor: 'Buried deep. Digs deeper.' },
+  glitch:  { name: 'Glitch', hp: 28, atk: 9, spd: 8, xp: 12, bounty: 11, flavor: 'Reality error. Reality error. Rea—' },
   captcha: { name: 'CAPTCHA Golem', hp: 90, atk: 10, spd: 4, xp: 40, bounty: 45, boss: true, flavor: 'SELECT ALL SQUARES CONTAINING YOUR DOOM.' },
   bsod:    { name: 'B.S.O.D.', hp: 120, atk: 12, spd: 5, xp: 60, bounty: 70, boss: true, flavor: 'Your PC ran into a problem: this guy.' },
+  clippy:  { name: 'Clippy.exe', hp: 130, atk: 12, spd: 5, xp: 55, bounty: 60, boss: true, art: 'captcha', flavor: 'It looks like you are trying to lose. Need help?' },
   spamking:{ name: 'THE SPAM KING', hp: 160, atk: 14, spd: 6, xp: 100, bounty: 120, boss: true, flavor: 'The final boss of your inbox.' },
+  overlord:{ name: 'THE ALGORITHM', hp: 230, atk: 17, spd: 7, xp: 150, bounty: 180, boss: true, art: 'bsod', flavor: 'It decides what you see next. Forever.' },
 };
 
 /* ============================================================
    STAGE ROADMAP — Candy-Crush style path of nodes.
    ============================================================ */
 DATA.STAGES = [
-  { region: 'Downloads',     name: 'The Downloads Folder', foes: ['popup', 'popup'],                       reward: [16, 26], itemChance: 0.25 },
-  { region: 'Downloads',     name: 'Sketchy .exe',         foes: ['popup', 'worm', 'popup'],               reward: [20, 30], itemChance: 0.3 },
-  { region: 'Recycle Bin',   name: 'Recycle Bin',          foes: ['worm', 'worm', 'blob'],                 reward: [26, 38], itemChance: 0.35 },
-  { region: 'Recycle Bin',   name: 'Deleted, Not Gone',    foes: ['blob', 'worm', 'drone', 'popup'],       reward: [30, 44], itemChance: 0.4 },
-  { region: 'Email Swamp',   name: 'The Inbox',            foes: ['phish', 'phish', 'drone'],              reward: [36, 50], itemChance: 0.45 },
-  { region: 'Email Swamp',   name: 'Newsletter Hell',      foes: ['phish', 'adware', 'drone', 'drone'],    reward: [42, 58], itemChance: 0.45 },
-  { region: 'System32',      name: 'System32',             foes: ['trojan', 'spyder', 'drone'],            reward: [50, 66], itemChance: 0.5 },
-  { region: 'System32',      name: 'DO NOT DELETE',        foes: ['trojan', 'spyder', 'spyder', 'captcha'], reward: [66, 88], itemChance: 0.6, boss: true },
-  { region: 'GPU Mines',     name: 'The GPU Mines',        foes: ['miner', 'miner', 'blob'],               reward: [58, 78], itemChance: 0.5 },
-  { region: 'GPU Mines',     name: 'Hash Rate Hell',       foes: ['miner', 'ransom', 'drone', 'blob'],     reward: [70, 92], itemChance: 0.55 },
-  { region: 'Dark Web',      name: 'The Dark Web',         foes: ['ransom', 'spyder', 'trojan'],           reward: [80, 105], itemChance: 0.6 },
-  { region: 'Dark Web',      name: 'Blue Screen',          foes: ['ransom', 'adware', 'trojan', 'bsod'],   reward: [100, 135], itemChance: 0.75, boss: true },
-  { region: 'Spam Fortress', name: 'The Gates',            foes: ['adware', 'ransom', 'drone', 'drone'],   reward: [110, 140], itemChance: 0.7 },
-  { region: 'Spam Fortress', name: 'THE SPAM KING',        foes: ['adware', 'ransom', 'spamking'],         reward: [150, 200], itemChance: 1, boss: true },
-  { region: 'The Cloud',     name: 'The Cloud (Endless)',  foes: [], endless: true,                        reward: [70, 95], itemChance: 0.5 },
+  { region: 'Downloads',     name: 'The Downloads Folder', foes: ['popup', 'popup'],                        reward: [16, 26], itemChance: 0.25 },
+  { region: 'Downloads',     name: 'Sketchy .exe',         foes: ['popup', 'worm', 'popup'],                reward: [20, 30], itemChance: 0.3 },
+  { region: 'Recycle Bin',   name: 'Recycle Bin',          foes: ['worm', 'worm', 'blob'],                  reward: [26, 38], itemChance: 0.35 },
+  { region: 'Recycle Bin',   name: 'Deleted, Not Gone',    foes: ['blob', 'worm', 'drone', 'popup'],        reward: [30, 44], itemChance: 0.4 },
+  { region: 'Browser Tabs',  name: '87 Open Tabs',         foes: ['cookie', 'cookie', 'toolbar'],           reward: [34, 46], itemChance: 0.4 },
+  { region: 'Browser Tabs',  name: 'Toolbar Hell',         foes: ['toolbar', 'cookie', 'deadlink', 'drone'],reward: [40, 54], itemChance: 0.45 },
+  { region: 'Email Swamp',   name: 'The Inbox',            foes: ['phish', 'phish', 'drone'],               reward: [40, 54], itemChance: 0.45 },
+  { region: 'Email Swamp',   name: 'Newsletter Hell',      foes: ['phish', 'adware', 'drone', 'drone'],     reward: [46, 62], itemChance: 0.45 },
+  { region: 'Email Swamp',   name: 'The Spam Filter',      foes: ['phish', 'adware', 'deadlink', 'captcha'],reward: [70, 92], itemChance: 0.6, boss: true },
+  { region: 'System32',      name: 'System32',             foes: ['trojan', 'spyder', 'drone'],             reward: [54, 70], itemChance: 0.5 },
+  { region: 'System32',      name: 'DO NOT DELETE',        foes: ['trojan', 'spyder', 'rootkit'],           reward: [64, 84], itemChance: 0.55 },
+  { region: 'System32',      name: 'The Registry Guardian',foes: ['rootkit', 'spyder', 'spyder', 'captcha'],reward: [80, 105], itemChance: 0.65, boss: true },
+  { region: 'GPU Mines',     name: 'The GPU Mines',        foes: ['miner', 'miner', 'blob'],                reward: [66, 86], itemChance: 0.5 },
+  { region: 'GPU Mines',     name: 'Hash Rate Hell',       foes: ['miner', 'ransom', 'drone', 'blob'],      reward: [76, 98], itemChance: 0.55 },
+  { region: 'Crypto Pit',    name: 'Rug Pull Ravine',      foes: ['miner', 'glitch', 'ransom'],             reward: [84, 108], itemChance: 0.55 },
+  { region: 'Crypto Pit',    name: 'To The Moon?',         foes: ['miner', 'glitch', 'rootkit', 'drone'],   reward: [92, 118], itemChance: 0.6 },
+  { region: 'Dark Web',      name: 'The Dark Web',         foes: ['ransom', 'spyder', 'trojan'],            reward: [96, 122], itemChance: 0.6 },
+  { region: 'Dark Web',      name: 'Onion Layers',         foes: ['ransom', 'glitch', 'rootkit', 'deadlink'],reward: [108, 138], itemChance: 0.65 },
+  { region: 'Dark Web',      name: 'Blue Screen',          foes: ['ransom', 'adware', 'rootkit', 'bsod'],   reward: [130, 165], itemChance: 0.8, boss: true },
+  { region: 'Old Forum',     name: "Necro'd Thread",       foes: ['glitch', 'deadlink', 'worm', 'worm'],    reward: [118, 148], itemChance: 0.6 },
+  { region: 'Old Forum',     name: "Clippy's Revenge",     foes: ['toolbar', 'glitch', 'clippy'],           reward: [150, 190], itemChance: 0.85, boss: true },
+  { region: 'Spam Fortress', name: 'The Gates',            foes: ['adware', 'ransom', 'drone', 'drone'],    reward: [140, 175], itemChance: 0.7 },
+  { region: 'Spam Fortress', name: 'THE SPAM KING',        foes: ['adware', 'ransom', 'rootkit', 'spamking'],reward: [180, 230], itemChance: 1, boss: true },
+  { region: 'The BIOS',      name: 'Deep Firmware',        foes: ['rootkit', 'glitch', 'glitch', 'bsod'],   reward: [190, 240], itemChance: 0.8 },
+  { region: 'The BIOS',      name: 'THE ALGORITHM',        foes: ['bsod', 'rootkit', 'overlord'],           reward: [240, 320], itemChance: 1, boss: true },
+  { region: 'The Cloud',     name: 'The Cloud (Endless)',  foes: [], endless: true,                         reward: [80, 110], itemChance: 0.5 },
 ];
-DATA._REGION_ICO = { 'Downloads': 'doc', 'Recycle Bin': 'recycle', 'Email Swamp': 'mail', 'System32': 'window',
-  'GPU Mines': 'gpu', 'Dark Web': 'tinfoil', 'Spam Fortress': 'can', 'The Cloud': 'window' };
+DATA._REGION_ICO = { 'Downloads': 'doc', 'Recycle Bin': 'recycle', 'Browser Tabs': 'window', 'Email Swamp': 'mail',
+  'System32': 'window', 'GPU Mines': 'gpu', 'Crypto Pit': 'coin', 'Dark Web': 'tinfoil', 'Old Forum': 'doc',
+  'Spam Fortress': 'can', 'The BIOS': 'gpu', 'The Cloud': 'window' };
+// each region gets a battle scene backdrop (forest / city / swamp / lab / cave / void / castle / core / sky)
+DATA.REGION_SCENE = { 'Downloads': 'forest', 'Recycle Bin': 'city', 'Browser Tabs': 'city', 'Email Swamp': 'swamp',
+  'System32': 'lab', 'GPU Mines': 'cave', 'Crypto Pit': 'cave', 'Dark Web': 'void', 'Old Forum': 'void',
+  'Spam Fortress': 'castle', 'The BIOS': 'core', 'The Cloud': 'sky' };
 DATA.STAGES.forEach((s, i) => {
-  s.id = 'stage' + i; s.n = i + 1; s.diff = Math.min(6, 1 + Math.floor(i / 2.5));
+  s.id = 'stage' + i; s.n = i + 1; s.diff = Math.min(6, 1 + Math.floor(i / 4));
   s.ico = s.boss ? 'skull' : (DATA._REGION_ICO[s.region] || 'swords');
+  s.scene = DATA.REGION_SCENE[s.region] || 'forest';
 });
 
 /* ============================================================
@@ -371,6 +400,10 @@ DATA.FLAVOR_BY_FACE = {
   shark: 'Tralalero tralala. Wears three sneakers.',
   capp: 'A cappuccino. An assassin. A cappuccino assassin.',
   croco: 'Half crocodile, half bomber. All problem.',
+  trojan: 'A tamed Trojan. It only bites viruses now. Mostly.',
+  spyder: 'Reformed keylogger. Types your victory screens for you.',
+  drone: 'One of the swarm that switched sides. Still named Kevin.',
+  wormie: 'A friendly worm. Burrows through enemy lines, not your files.',
 };
 
 DATA.WANDERER_INTROS = [
@@ -409,6 +442,29 @@ DATA.rollCard = function (tier) {
 };
 DATA.STAT_ICO = { hp: 'heart', atk: 'fist', int: 'brain', spd: 'bolt', lck: 'clover' };
 DATA.STAT_NAME = { hp: 'MAX HP', atk: 'BONK', int: 'BRAIN', spd: 'ZOOM', lck: 'LUCK' };
+
+/* ============================================================
+   MEME RARITY + MEME PACKS (MemeBay gacha)
+   Buy packs, rip them open, pull a meme. Rarity boosts stats,
+   guarantees traits, and unlocks rarer species.
+   ============================================================ */
+DATA.RARITY = {
+  common:    { label: 'Common',    color: '#9aa2ab', statMul: 1.00, traits: 0, rareGene: 0.04, order: 0 },
+  rare:      { label: 'Rare',      color: '#4f9fe0', statMul: 1.14, traits: 1, rareGene: 0.20, order: 1 },
+  epic:      { label: 'Epic',      color: '#b06ae0', statMul: 1.30, traits: 1, rareGene: 0.45, order: 2 },
+  legendary: { label: 'Legendary', color: '#f0b541', statMul: 1.50, traits: 2, rareGene: 0.80, order: 3 },
+};
+DATA.RARITY_ORDER = ['common', 'rare', 'epic', 'legendary'];
+DATA.MEME_PACKS = {
+  starter: { name: 'Starter Meme Pack', ico: 'cards', price: 45,  desc: 'A fresh meme. Mostly commons.',       odds: { common: 0.78, rare: 0.19, epic: 0.03, legendary: 0.0 } },
+  premium: { name: 'Premium Meme Pack', ico: 'cards', price: 120, desc: 'Better odds — rares & epics.',         odds: { common: 0.40, rare: 0.42, epic: 0.15, legendary: 0.03 } },
+  legend:  { name: 'Legendary Pack',    ico: 'crown', price: 280, desc: 'Guaranteed rare+; shot at a Legend.',  odds: { common: 0.0, rare: 0.55, epic: 0.33, legendary: 0.12 } },
+};
+DATA.rollRarity = function (odds) {
+  let r = Math.random();
+  for (const k of DATA.RARITY_ORDER) { r -= (odds[k] || 0); if (r <= 0) return k; }
+  return 'common';
+};
 
 /* ============================================================
    POWER — the mobile-style rating shown everywhere.

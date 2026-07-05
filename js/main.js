@@ -17,9 +17,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   Desktop.init();
 
-  if (!Game.state.seenIntro) {
-    Desktop.showIntro();
-  }
+  // title screen first — Play drops you onto the desktop
+  Desktop.showMenu();
 
   // 1s tick: incubate eggs + refresh live countdowns + desktop egg timers
   setInterval(() => {

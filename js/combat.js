@@ -22,6 +22,7 @@ const Combat = {
     // cooler level design — each stage fights in a themed "zone"
     const zi = stage.endless ? 5 : Math.min(4, Math.max(0, (stage.diff || 1) - 1));
     battle.dataset.zone = ['downloads', 'system', 'registry', 'deepweb', 'core', 'cloud'][zi];
+    battle.dataset.scene = stage.scene || 'forest';   // themed battlefield scenery
     // first-ever run of the first stage plays as a guided tutorial
     this.tutorial = !stage.endless && !Game.state.tutorialDone && stage.id === DATA.STAGES[0].id;
     this._tutStrike = this._tutParry = this.tutorial;

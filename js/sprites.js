@@ -712,6 +712,34 @@ const VIRUS_ART = {
     '.ooooooooooo..',
     '...oo...oo....',
   ]},
+  rootkit: { p: { b: '#7a3f9e', d: '#4e2668', e: '#ff5db0', k: '#26203a' }, g: [
+    'o.o..oo..o.o',
+    'obo.obbo.obo',
+    'obbobbbbobbo',
+    'obbbbbbbbbbo',
+    'obeebbbbeebo',
+    'obbbbbbbbbbo',
+    'obbbokkobbbo',
+    'obbbbbbbbbbo',
+    '.obbbbbbbbo.',
+    '..obo..obo..',
+    '..obo..obo..',
+    '...o....o...',
+  ]},
+  glitch: { p: { c: '#4fc4e8', m: '#ff4d6d', y: '#ffe07a', w: '#f2f0f7', k: '#26203a' }, g: [
+    'oooooooo.ooo',
+    'occcccmmmo.o',
+    'occwccmwmmo.',
+    'occcccmmmmo.',
+    'oooooooooo..',
+    '.occccccco..',
+    'ocwcccccwco.',
+    'occcoooccco.',
+    'occckkkccco.',
+    'occcccccco..',
+    'oo.oo.oo.oo.',
+    '............',
+  ]},
 };
 
 /* ============================================================
@@ -1317,9 +1345,12 @@ const Sprite = {
     return cv.toDataURL();
   },
 
-  // full-body brainrot sprites (nyan, tung, shark, capp, croco)
+  // memes that use enemy models render from the virus art atlas
+  FULL_ALIAS: { wormie: 'worm' },
+
+  // full-body brainrot sprites (nyan, tung, shark, capp, croco) + tamed enemies
   _renderFull(p, stage, zombie, equip, old) {
-    const art = MEME_FULL[p.face] || MEME_FULL.nyan;
+    const art = MEME_FULL[p.face] || VIRUS_ART[this.FULL_ALIAS[p.face] || p.face] || MEME_FULL.nyan;
     const cv = document.createElement('canvas');
     cv.width = this.W; cv.height = this.H;
     const ctx = cv.getContext('2d');

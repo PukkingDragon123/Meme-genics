@@ -14,6 +14,7 @@ const Desktop = {
      INIT
      ============================================================ */
   init() {
+    this.buildRoomScene();
     this.buildIcons();
     this.buildStartMenu();
     this.initTray();
@@ -50,6 +51,20 @@ const Desktop = {
         this.sayBubble(U.pick(ids), U.pick(DATA.PHRASES));
       }
     }, 6000);
+  },
+
+  // cozy living-room backdrop drawn behind the desktop
+  buildRoomScene() {
+    const d = document.getElementById('wallpaper-doodles');
+    if (!d) return;
+    d.innerHTML = `
+      <div class="rm-window"><div class="rm-sky"></div><div class="rm-sun"></div><div class="rm-hill"></div><div class="rm-tree t1"></div><div class="rm-tree t2"></div></div>
+      <div class="rm-shelf"></div>
+      <div class="rm-picture"></div>
+      <div class="rm-plant"><div class="rm-pot"></div><div class="rm-leaf l1"></div><div class="rm-leaf l2"></div><div class="rm-leaf l3"></div></div>
+      <div class="rm-couch"><div class="rm-arm a1"></div><div class="rm-cush"></div><div class="rm-arm a2"></div></div>
+      <div class="rm-lamp"><div class="rm-shade"></div><div class="rm-pole"></div></div>
+      <div class="rm-rug"></div>`;
   },
 
   initTray() {
@@ -818,37 +833,111 @@ const Desktop = {
   /* ============================================================
      SHOP — MemeBay
      ============================================================ */
+  ADS: [
+    { t: 'Download MORE RAM', s: '100% legal. Click here (do not).', ico: 'gpu' },
+    { t: 'You are visitor 1,000,000!', s: 'Claim your FREE frog now!!1!', ico: 'flower' },
+    { t: 'Doctors HATE this meme', s: 'One weird trick to delete viruses.', ico: 'flask' },
+    { t: 'HOT MEMES in your folder', s: 'They want to breed. Act fast.', ico: 'heart' },
+    { t: 'Your PC may be infected', s: '(it is, that is the whole game)', ico: 'virus' },
+    { t: 'Congratulations winner!', s: 'Spin to win a Legendary Pack!', ico: 'crown' },
+  ],
+  adHTML(a) {
+    return `<div class="web-ad"><div class="ad-tag">AD</div><div class="ad-ico">${Icon.ico(a.ico, 30)}</div>
+      <div class="ad-txt"><b>${a.t}</b><span>${a.s}</span></div></div>`;
+  },
+
   openShop() {
     this.openWindow('shop', {
-      title: 'MemeBay', ico: 'cart', cls: 'w-shop', w: 420,
-      build: body => {
-        body.innerHTML = `<div class="shop-wrap">
-          <div class="shop-head"><span>${Icon.ico('coin', 15)} You have <b>${Game.state.coins}</b></span>
-          <span style="font-size:11px;opacity:.6">Fresh stock every day!</span></div>
-          <div class="shop-grid"></div></div>`;
-        const grid = body.querySelector('.shop-grid');
-        for (const id of Game.state.shopStock) {
-          const it = DATA.ITEMS[id];
-          const cell = U.el('div', 'shop-item');
-          cell.innerHTML = `<span class="si-ico">${Icon.ico(it.ico, 38)}</span><span class="si-name">${it.name}</span>
-            <span class="si-desc">${it.desc}</span>`;
-          const buy = U.el('button', 'chunky-btn small warn', `${Icon.ico('coin', 15)} ${it.price}`);
-          buy.onclick = () => {
-            if (!Game.spend(it.price)) return;
-            Game.addItem(id);
-            SFX.play('buy');
-            const c = centerOf(buy);
-            FX.sparkle(c.x, c.y, 6);
-            toast(`Bought <b>${it.name}</b>!`, 3000, 'cart');
-            Game.save();
-            this.refreshWindow('shop');
-            this.refreshWindow('inventory');
-          };
-          cell.appendChild(buy);
-          grid.appendChild(cell);
-        }
-      },
+      title: 'MemeBay', ico: 'cart', cls: 'w-shop w-web', w: 580,
+      build: body => this.renderShop(body),
     });
+  },
+
+  renderShop(body) {
+    const ads = U.shuffle(this.ADS.slice());
+    body.innerHTML = `
+      <div class="web">
+        <div class="web-chrome">
+          <span class="wc-dot r"></span><span class="wc-dot y"></span><span class="wc-dot g"></span>
+          <div class="wc-url">${Icon.ico('lock', 11)} https://memebay.shop/deals</div>
+          <div class="wc-coins">${Icon.ico('coin', 13)} <b>${Game.state.coins}</b></div>
+        </div>
+        <div class="web-ban">${Icon.ico('flames', 16)} MEGA MEME SALE — buy packs, pull rare memes! ${Icon.ico('flames', 16)}</div>
+        <div class="web-body">
+          <div class="web-main">
+            <div class="web-h">${Icon.ico('cards', 15)} Meme Packs <span>— rip open for a random meme</span></div>
+            <div class="pack-shelf"></div>
+            <div class="web-h">${Icon.ico('bag', 15)} Gear &amp; Consumables</div>
+            <div class="shop-grid"></div>
+          </div>
+          <div class="web-side">
+            ${this.adHTML(ads[0])}${this.adHTML(ads[1])}${this.adHTML(ads[2])}
+          </div>
+        </div>
+      </div>`;
+    // meme packs (gacha)
+    const shelf = body.querySelector('.pack-shelf');
+    for (const id of Object.keys(DATA.MEME_PACKS)) {
+      const p = DATA.MEME_PACKS[id];
+      const odds = DATA.RARITY_ORDER.filter(r => p.odds[r] > 0)
+        .map(r => `<span style="color:${DATA.RARITY[r].color}">${Math.round(p.odds[r] * 100)}% ${DATA.RARITY[r].label}</span>`).join(' · ');
+      const cell = U.el('div', 'buy-pack');
+      cell.innerHTML = `<div class="bp-foil">${Icon.ico(p.ico, 40)}</div>
+        <div class="bp-name">${p.name}</div>
+        <div class="bp-odds">${odds}</div>`;
+      const buy = U.el('button', 'chunky-btn small fun', `${Icon.ico('coin', 14)} ${p.price}`);
+      buy.onclick = () => this.buyMemePackFlow(id);
+      cell.appendChild(buy);
+      shelf.appendChild(cell);
+    }
+    // gear / consumables
+    const grid = body.querySelector('.shop-grid');
+    for (const id of Game.state.shopStock) {
+      const it = DATA.ITEMS[id];
+      const cell = U.el('div', 'shop-item');
+      cell.innerHTML = `<span class="si-ico">${Icon.ico(it.ico, 34)}</span><span class="si-name">${it.name}</span>
+        <span class="si-desc">${it.desc}</span>`;
+      const buy = U.el('button', 'chunky-btn small warn', `${Icon.ico('coin', 14)} ${it.price}`);
+      buy.onclick = () => {
+        if (!Game.spend(it.price)) return;
+        Game.addItem(id); SFX.play('buy');
+        const c = centerOf(buy); FX.sparkle(c.x, c.y, 6);
+        toast(`Bought <b>${it.name}</b>!`, 3000, 'cart');
+        Game.save(); this.refreshWindow('shop'); this.refreshWindow('inventory');
+      };
+      cell.appendChild(buy);
+      grid.appendChild(cell);
+    }
+  },
+
+  buyMemePackFlow(packId) {
+    const meme = Game.buyMemePack(packId);
+    this.refreshWindow('shop');
+    if (!meme) return;
+    Game.save();
+    this.revealMeme(meme);
+  },
+
+  // rip-open reveal for a bought meme pack (rarity flair)
+  revealMeme(meme) {
+    const node = U.el('div', 'meme-reveal');
+    node.innerHTML = `<p class="pack-hint">Sealed <b>Meme Pack</b> — rip it open!</p>${this.ripPackHTML('cards', 'MEME PACK', 'meme-foil')}`;
+    const showCard = () => {
+      const R = DATA.RARITY[meme.rarity] || DATA.RARITY.common;
+      Game.addMeme(meme); Game.save(); this.refreshAllWindows(); this.refreshWalkers(); this.updateTray();
+      node.innerHTML = `<div class="reveal-card rar-${meme.rarity}" style="--rc:${R.color}">
+          <div class="rv-rarity">${R.label.toUpperCase()}</div>
+          <div class="rv-portrait">${Sprite.memeSVG(meme, { size: 120 })}</div>
+          <div class="rv-name">${U.esc(meme.name)}</div>
+          <div class="rv-sub">${Icon.ico(Genetics.classOf(meme).ico, 13)} ${Genetics.classOf(meme).name} ${DATA.GENES.face.alleles[meme.pheno.face].label} · ${Icon.ico('bolt', 12)} ${Genetics.power(meme)}</div>
+          <div class="trait-list" style="justify-content:center;margin-top:6px">${meme.traits.length ? meme.traits.map(t => this.traitPill(t)).join('') : '<span style="opacity:.5;font-size:11px">no traits</span>'}</div>
+        </div>`;
+      this.bindPillTooltips(node);
+      FX.confetti(window.innerWidth / 2, window.innerHeight / 2, R.order >= 2 ? 40 : 22);
+      if (R.order >= 2) { bigBanner(R.label.toUpperCase() + '!'); SFX.play('fanfare'); } else SFX.play('birth');
+    };
+    Modal.show({ title: `${Icon.ico('cards', 20)} MemeBay Pack`, bodyNode: node, actions: [{ label: 'Sweet!', cls: 'good' }] });
+    setTimeout(() => this.setupRip(node, showCard), 40);
   },
 
   /* ============================================================
@@ -1297,33 +1386,59 @@ const Desktop = {
     body.querySelector('.pack-foot').appendChild(done);
   },
 
-  // sealed foil pack — rip it open to reveal the cards
+  // ---- shared "rip the pack by dragging the tab across the line" widget ----
+  ripPackHTML(logoIco, label, cls) {
+    return `<div class="pack-sealed ${cls || ''}" id="pack-sealed">
+        <div class="ps-foil">
+          <div class="ps-logo">${Icon.ico(logoIco, 50)}<span>${label}</span></div>
+          <div class="ps-shine"></div>
+        </div>
+        <div class="ps-tear"></div>
+        <div class="ps-lid"></div>
+        <div class="ps-tab" id="pack-tab">${Icon.ico('hand', 16)} DRAG</div>
+      </div>
+      <div class="rip-hint">drag the tab across the dotted line to rip it open →</div>`;
+  },
+  setupRip(scope, onOpen) {
+    const pack = scope.querySelector('#pack-sealed');
+    const tab = scope.querySelector('#pack-tab');
+    if (!pack || !tab) return;
+    let opened = false;
+    const burst = () => {
+      if (opened) return; opened = true;
+      pack.classList.add('ripped');
+      SFX.play('whoosh'); setTimeout(() => SFX.play('open'), 120);
+      const r = pack.getBoundingClientRect(); const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      FX.confetti(cx, cy, 28); FX.stars(cx, cy); FX.ring(cx, cy, '#f0b541');
+      setTimeout(onOpen, 640);
+    };
+    const onDown = e => {
+      if (opened) return; e.preventDefault();
+      const rect = pack.getBoundingClientRect();
+      const onMove = ev => {
+        const prog = U.clamp((ev.clientX - rect.left) / rect.width, 0, 1);
+        pack.style.setProperty('--rip', prog);
+        tab.style.left = (10 + prog * 80) + '%';
+        if (prog > 0.8) burst();
+      };
+      const onUp = () => {
+        document.removeEventListener('pointermove', onMove);
+        if (!opened) { pack.style.setProperty('--rip', 0); tab.style.left = '10%'; }
+      };
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp, { once: true });
+    };
+    tab.addEventListener('pointerdown', onDown);
+    pack.addEventListener('dblclick', burst);   // accessible fallback
+  },
+
+  // sealed skill pack — drag to rip, then reveal the cards
   renderSealed(body) {
     const ps = this.packState;
     body.innerHTML = `
-      <p class="pack-hint">${ps.tutorial ? 'Your first <b>Skill Card Pack</b>! ' : ''}A sealed pack of <b>4 skill cards</b>. Rip it open!</p>
-      <div class="pack-sealed" id="pack-sealed" title="Rip it open!">
-        <div class="ps-top"></div>
-        <div class="ps-foil">
-          <div class="ps-logo">${Icon.ico('cards', 52)}<span>SKILL PACK</span></div>
-          <div class="ps-shine"></div>
-        </div>
-      </div>
-      <div class="pack-foot"><button class="chunky-btn fun big" id="pack-rip">${Icon.ico('cards', 18)} RIP OPEN</button></div>`;
-    const doRip = () => {
-      if (ps.phase === 'ripping') return;
-      ps.phase = 'ripping';
-      const sealed = body.querySelector('#pack-sealed');
-      sealed.classList.add('ripped');
-      const rip = body.querySelector('#pack-rip'); if (rip) rip.disabled = true;
-      SFX.play('whoosh'); setTimeout(() => SFX.play('open'), 130);
-      const r = sealed.getBoundingClientRect();
-      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      FX.confetti(cx, cy, 26); FX.stars(cx, cy); FX.ring(cx, cy, '#f0b541');
-      setTimeout(() => { ps.phase = 'open'; ps.dealt = false; this.renderPack(body); }, 680);
-    };
-    body.querySelector('#pack-sealed').onclick = doRip;
-    body.querySelector('#pack-rip').onclick = doRip;
+      <p class="pack-hint">${ps.tutorial ? 'Your first <b>Skill Card Pack</b>! ' : ''}A sealed pack of <b>4 skill cards</b>.</p>
+      ${this.ripPackHTML('cards', 'SKILL PACK')}`;
+    this.setupRip(body, () => { ps.phase = 'open'; ps.dealt = false; this.renderPack(body); });
   },
 
   // pointer-based drag (works on mouse + touch)
@@ -1457,6 +1572,36 @@ const Desktop = {
         </div>`;
       },
     });
+  },
+
+  /* ============================================================
+     TITLE / MENU SCREEN
+     ============================================================ */
+  showMenu() {
+    const el = document.getElementById('menu-screen');
+    if (!el) return;
+    el.classList.remove('hidden', 'closing');
+    const mm = el.querySelector('.menu-memes');
+    const pool = (Game.state.memes || []).slice(0, 4);
+    mm.innerHTML = pool.map((m, i) => `<div class="menu-meme" style="animation-delay:${i * 0.18}s">${Sprite.memeSVG(m, { size: 82 })}</div>`).join('');
+    document.getElementById('menu-play').onclick = () => this.startFromMenu();
+    document.getElementById('menu-new').onclick = () => {
+      Modal.show({
+        title: `${Icon.ico('reset', 20)} New Game?`,
+        bodyHTML: '<p style="text-align:center">Wipe your save and start a brand-new bloodline?</p>',
+        actions: [{ label: 'New Game', cls: 'bad', fn: () => Game.reset() }, { label: 'Cancel' }],
+      });
+    };
+  },
+
+  startFromMenu() {
+    const el = document.getElementById('menu-screen');
+    SFX.ensure(); if (SFX.musicEnabled) SFX.startMusic(); SFX.play('open');
+    el.classList.add('closing');
+    setTimeout(() => {
+      el.classList.add('hidden'); el.classList.remove('closing');
+      if (!Game.state.seenIntro) this.showIntro();
+    }, 360);
   },
 
   /* ============================================================

@@ -24,7 +24,12 @@ open index.html
 
 ## The loop
 
-1. **Breed** — fuse two adults in `Breeder2000.exe`. Fusing lays an **egg that incubates in real
+0. **Start** — a **title screen** greets you; hit **PLAY** to drop onto your cozy desktop.
+1. **Get memes** — new memes come from **MemeBay**, a fake shopping site (with ads): buy **meme
+   packs** and **rip them open** for a random meme with a **rarity** (Common → Legendary). Higher
+   rarities mean better stats, guaranteed traits, and rarer species — including **tamed enemies**
+   (Trojan, Spyder, Drone, Wormie) that fight for you.
+2. **Breed** — fuse two adults in `Breeder2000.exe`. Fusing lays an **egg that incubates in real
    time** on your desktop — **tap the egg to speed up hatching** — while both parents are **busy
    breeding and can't fight** until they've rested (watch it all in the **Breeding** folder). Kids
    inherit one allele per gene from each parent (dominant shows) — **body shape, size**, color,

@@ -132,6 +132,17 @@ const Game = {
     if (!this.state.shopStock.includes('pizza')) this.state.shopStock[0] = 'pizza';
   },
 
+  // buy + roll a MemeBay meme pack; returns the rolled meme (added on reveal)
+  buyMemePack(packId) {
+    const pack = DATA.MEME_PACKS[packId];
+    if (!pack) return null;
+    if (this.state.memes.length >= this.CAPACITY) { SFX.play('error'); toast('Your desktop is full! Retire, breed off, or adopt out a meme first.', 3600, 'warning'); return null; }
+    if (!this.spend(pack.price)) return null;
+    const rarity = DATA.rollRarity(pack.odds);
+    const meme = Genetics.packMeme(rarity);
+    return meme;
+  },
+
   /* ---------------- meme lifecycle ---------------- */
 
   addMeme(meme) {
@@ -361,8 +372,8 @@ const Game = {
     // grow all babies into adults after a fight
     for (const m of this.state.memes) if (!m.matured) m.matured = true;
     if (this.isUnlocked('shop')) this.restockShop();
-    if (U.chance(0.4) && this.state.memes.length < this.CAPACITY) this.strayEvent();
-    else if (U.chance(0.3)) { const amt = U.randInt(6, 16); this.addCoins(amt, null); toast(`Found ${amt} coins in the cache!`, 2600, 'coin'); }
+    // new memes come from MemeBay packs now — just a little coin bonus here
+    if (U.chance(0.5)) { const amt = U.randInt(8, 20); this.addCoins(amt, null); toast(`Found ${amt} coins in the cache!`, 2600, 'coin'); }
     if (U.chance(0.55)) this.rollAdoption();   // someone online may want to adopt a retiree
     this.ensureNotSoftlocked();
     Desktop.refreshWalkers();

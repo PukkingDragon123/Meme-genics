@@ -141,6 +141,25 @@ const Genetics = {
     });
   },
 
+  // roll a brand-new meme of a given rarity (MemeBay packs)
+  packMeme(rarity = 'common') {
+    const R = DATA.RARITY[rarity] || DATA.RARITY.common;
+    const genome = {};
+    for (const g of Object.keys(DATA.GENES)) {
+      genome[g] = [this.randomAllele(g, U.chance(R.rareGene)), this.randomAllele(g, U.chance(R.rareGene))];
+    }
+    const meme = this.newMeme({ genome });
+    meme.rarity = rarity;
+    for (const s of ['hp', 'atk', 'int', 'spd', 'lck']) meme.base[s] = Math.round(meme.base[s] * R.statMul);
+    meme.traits = [];
+    for (let i = 0; i < R.traits; i++) {
+      const pool = DATA.GOOD_TRAITS.filter(t => !meme.traits.includes(t));
+      if (pool.length) meme.traits.push(U.pick(pool));
+    }
+    meme.hpMax = this.effStats(meme).hp;
+    return meme;
+  },
+
   /* ---------------- breeding ---------------- */
 
   related(a, b) {
