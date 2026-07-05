@@ -29,20 +29,21 @@ open index.html
    packs** and **rip them open** for a random meme with a **rarity** (Common → Legendary). Higher
    rarities mean better stats, guaranteed traits, and rarer species — including **tamed enemies**
    (Trojan, Spyder, Drone, Wormie) that fight for you.
-2. **Breed** — fuse two adults in `Breeder2000.exe`. Fusing lays an **egg that incubates in real
-   time** on your desktop — **tap the egg to speed up hatching** — while both parents are **busy
-   breeding and can't fight** until they've rested (watch it all in the **Breeding** folder). Kids
-   inherit one allele per gene from each parent (dominant shows) — **body shape, size**, color,
-   class, up to two learned skills, traits — and can mutate rare genes. **Breeding for stronger
-   stats is the whole strategy.**
-2. **Grow** — babies grow into fighters after their first battle (or a little time / a few pets).
-3. **Fight** — pick a stage on the **map**, choose up to 4 memes, and **insert the infected flash
-   drive** to begin.
-4. **Unlock skills** — clearing a stage drops a **Skill Card Pack**: **rip it open** and **drag**
+2. **Breed** — fuse two adults in `Breeder2000.exe`. Fusing lays an **egg on your desktop that
+   hatches only when you WIN a battle**, and both parents are **busy breeding — they can't fight**
+   until they've rested (watch it all in the **Breeding** folder). Kids inherit one allele per gene
+   from each parent (dominant shows) — **body shape, size**, color, class, up to two learned skills,
+   traits — and can mutate rare genes. **Breeding for stronger stats is the whole strategy.**
+3. **Grow** — babies grow into fighters after their first battle (or a little time / a few pets).
+4. **Fight** — pick a stage on the **map**, send in **as many memes as you want**, and **insert the
+   infected flash drive**. Battles are **hard**: enemies come in **waves** ending in a **boss**, and
+   they hit *hard*. Your **mini-games only reduce damage** — nail your STRIKE or it lands weaker,
+   PARRY in time to blunt an incoming hit. Do nothing and you'll get flattened.
+5. **Unlock skills** — clearing a stage drops a **Skill Card Pack**: **rip it open** and **drag**
    each of the 4 cards — real TCG-style cards — onto a meme. Some are new combat skills, others are
    common **stat-ups / passives**. Memes start with only a Basic Strike and hold **2 skills max**
    (a new skill can replace an old one).
-5. **Retire** — every meme has **5 stages of energy** (shown as a bar). Spend it all and the meme
+6. **Retire** — every meme has **5 stages of energy** (shown as a bar). Spend it all and the meme
    **retires** (breed only), so you must keep breeding fresh fighters. Retired memes attract
    **online adopters** who DM you to buy them for **free coins**. Fallen memes are permanently dead
    (necropost or Copium excepted).

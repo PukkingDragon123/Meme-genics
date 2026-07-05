@@ -9,8 +9,10 @@
 const Combat = {
   state: null,
 
-  GRADE_MULT: { miss: 0.55, ok: 1.0, good: 1.35, perfect: 1.8 },
-  PARRY_BLOCK: { miss: 0.0, ok: 0.2, good: 0.5, perfect: 0.9 },
+  // the mini-game only REDUCES your damage — a perfect run is just full damage, never a bonus
+  GRADE_MULT: { miss: 0.4, ok: 0.7, good: 0.9, perfect: 1.0 },
+  PARRY_BLOCK: { miss: 0.0, ok: 0.25, good: 0.55, perfect: 0.92 },
+  ENEMY_ATK_MULT: 1.75,   // enemies hit a LOT harder now
 
   /* ============================================================
      SETUP
@@ -37,64 +39,93 @@ const Combat = {
       stage, wave, scale,
       units: [], round: 0, over: false, busy: false,
       loot: { coins: 0 }, deadMemes: [],
+      waves: this.buildWaves(stage), waveIdx: 0, transitioning: false,
     };
     this.state = st;
 
     document.getElementById('battle-stagename').innerHTML =
       `${Icon.ico(stage.ico || 'swords', 20)} ${stage.name.toUpperCase()}`;
-    document.getElementById('battle-round').textContent = 'ROUND 1';
+    this.updateWaveLabel();
 
     document.getElementById('btn-flee').onclick = () => this.confirmFlee();
     document.getElementById('btn-bag').onclick = () => this.openBag();
 
-    this.buildArena(squad, this.rosterFor(stage), scale);
+    this.buildArena(squad, st.waves[0], scale);
     this.intro();
+  },
+
+  updateWaveLabel() {
+    const st = this.state;
+    const el = document.getElementById('battle-round');
+    if (!el) return;
+    const w = st.stage.endless ? 'WAVE ' + (st.wave || 1)
+      : 'WAVE ' + (st.waveIdx + 1) + '/' + st.waves.length;
+    el.textContent = st.round ? w + ' · R' + st.round : w;
+  },
+
+  // split a stage into multiple waves; the boss is always last, later waves scale up
+  buildWaves(stage) {
+    if (stage.endless) return [this.rosterFor(stage)];
+    const all = stage.foes.slice();
+    const bosses = all.filter(f => DATA.VIRUSES[f] && DATA.VIRUSES[f].boss);
+    const mobs = all.filter(f => !(DATA.VIRUSES[f] && DATA.VIRUSES[f].boss));
+    const waves = [];
+    if (bosses.length) {
+      if (mobs.length) {
+        const h = Math.ceil(mobs.length / 2);
+        waves.push(mobs.slice(0, h));
+        waves.push([...mobs.slice(h), ...bosses]);
+      } else waves.push(bosses.slice());
+    } else {
+      const h = Math.ceil(all.length / 2);
+      waves.push(all.slice(0, h));
+      if (all.slice(h).length) waves.push(all.slice(h));
+      if ((stage.diff || 1) >= 3) waves.push(all.slice());   // an extra, tougher wave
+    }
+    return waves.filter(w => w.length);
   },
 
   rosterFor(stage) {
     if (!stage.endless) return stage.foes.slice();
     const wave = Game.state.cloudWave + 1;
-    const pool = ['popup', 'worm', 'drone', 'blob', 'spyder', 'phish', 'ransom', 'trojan', 'adware'];
-    const count = Math.min(5, 2 + Math.floor(wave / 2));
+    const pool = ['popup', 'worm', 'drone', 'blob', 'spyder', 'phish', 'ransom', 'trojan', 'adware', 'glitch', 'rootkit'];
+    const count = Math.min(6, 2 + Math.floor(wave / 2));
     const foes = [];
     for (let i = 0; i < count; i++) foes.push(U.pick(pool));
-    if (wave % 3 === 0) foes[foes.length - 1] = U.pick(['captcha', 'bsod', 'spamking']);
+    if (wave % 3 === 0) foes[foes.length - 1] = U.pick(['captcha', 'bsod', 'spamking', 'clippy', 'overlord']);
     return foes;
+  },
+
+  makeMeme(meme) {
+    const s = Genetics.effStats(meme);
+    meme.battles++;
+    return {
+      id: U.uid('u'), isMeme: true, meme, side: 'L',
+      name: meme.name, stats: s, hp: s.hp, hpMax: s.hp,
+      statuses: [], abilities: Genetics.abilities(meme), cds: {},
+      el: null, body: null, x: 0, homeX: 0, back: false,
+    };
+  },
+  makeFoe(fid, scale) {
+    const def = DATA.VIRUSES[fid];
+    Game.discoverVirus(fid);
+    const atk = Math.max(1, Math.round(def.atk * scale * this.ENEMY_ATK_MULT));
+    return {
+      id: U.uid('v'), isMeme: false, def, virusId: fid, side: 'R',
+      name: def.name,
+      stats: { atk, int: atk, spd: def.spd, lck: 3, crit: 4, resist: def.boss ? 30 : 0 },
+      hp: Math.round(def.hp * scale * 1.1), hpMax: Math.round(def.hp * scale * 1.1),
+      statuses: [], abilities: ['bonk'], cds: {},
+      el: null, body: null, x: 0, homeX: 0, back: false,
+    };
   },
 
   buildArena(squad, foeIds, scale) {
     const st = this.state;
-    const box = document.getElementById('arena-units');
-    box.innerHTML = '';
-
-    const mkMeme = (meme, i) => {
-      const s = Genetics.effStats(meme);
-      meme.battles++;
-      return {
-        id: U.uid('u'), isMeme: true, meme, side: 'L',
-        name: meme.name, stats: s, hp: s.hp, hpMax: s.hp,
-        statuses: [], abilities: Genetics.abilities(meme), cds: {},
-        el: null, body: null, x: 0, homeX: 0, back: false,
-      };
-    };
-    const mkFoe = (fid, i) => {
-      const def = DATA.VIRUSES[fid];
-      Game.discoverVirus(fid);
-      const atk = Math.round(def.atk * scale);
-      return {
-        id: U.uid('v'), isMeme: false, def, virusId: fid, side: 'R',
-        name: def.name,
-        stats: { atk, int: atk, spd: def.spd, lck: 3, crit: 4, resist: def.boss ? 30 : 0 },
-        hp: Math.round(def.hp * scale), hpMax: Math.round(def.hp * scale),
-        statuses: [], abilities: ['bonk'], cds: {},
-        el: null, body: null, x: 0, homeX: 0, back: false,
-      };
-    };
-
-    const memes = squad.map(mkMeme);
-    const foes = foeIds.map(mkFoe);
+    document.getElementById('arena-units').innerHTML = '';
+    const memes = squad.map(m => this.makeMeme(m));
+    const foes = foeIds.map(f => this.makeFoe(f, scale));
     st.units = [...memes, ...foes];
-
     this.placeSide(memes, 'L');
     this.placeSide(foes, 'R');
     for (const u of st.units) this.spawnUnit(u);
@@ -103,12 +134,32 @@ const Combat = {
     this.renderTeamTrack();
   },
 
+  // spawn the next wave onto the field (memes stay, new foes arrive)
+  async nextWave() {
+    const st = this.state;
+    st.transitioning = true;
+    st.waveIdx++;
+    this.updateWaveLabel();
+    bigBanner('WAVE ' + (st.waveIdx + 1) + '!');
+    SFX.play('whoosh'); this.camWide();
+    await U.wait(750);
+    const scale = st.scale * (1 + st.waveIdx * 0.14);   // each wave hits harder
+    const foes = st.waves[st.waveIdx].map(f => this.makeFoe(f, scale));
+    this.placeSide(foes, 'R');
+    for (const u of foes) { st.units.push(u); this.spawnUnit(u); }
+    this.renderTeamTrack();
+    this.log('A new wave attacks!', true, 'skull');
+    st.transitioning = false;
+    st.busy = false;
+    this.loop();   // resume the turn loop with the fresh wave
+  },
+
   placeSide(list, side) {
     const n = list.length;
+    const step = n > 1 ? Math.min(7, 32 / (n - 1)) : 0;   // compress if you brought a crowd
     list.forEach((u, i) => {
       u.back = i % 2 === 1 && n > 2;
-      const step = 7;
-      u.x = side === 'L' ? 15 + i * step : 85 - i * step;
+      u.x = side === 'L' ? 14 + i * step : 86 - i * step;
       u.homeX = u.x;
     });
   },
@@ -195,10 +246,10 @@ const Combat = {
         title: `${Icon.ico('swords', 22)} How to fight`,
         bodyHTML: `<div style="text-align:center;font-size:13px;line-height:1.6">
           <p>Your memes and the viruses <b>fight automatically</b> — they leap in and clash on their own.</p>
-          <p style="margin-top:6px">You jump in with <b>skill</b>. A little <b>mini-game</b> pops up on every action:</p>
-          <p style="margin-top:6px">${Icon.ico('fist', 14)} <b>Attacking?</b> Do what it says — stop the marker in the green, hit the target, tap on the beat. Nail it for <b>bonus damage</b>.</p>
-          <p style="margin-top:4px">${Icon.ico('shield2', 14)} <b>Being attacked?</b> A red <b>PARRY!</b> game appears — react in time to <b>block</b>. A perfect parry reflects damage.</p>
-          <p style="margin-top:6px;opacity:.7;font-size:12px">Tip: you can use your mouse/tap or the SPACE key. Do nothing and it still resolves — but skill wins fights.</p>
+          <p style="margin-top:6px">Enemies hit <b>HARD</b> and come in <b>waves</b>. You jump in with <b>skill</b> — a <b>mini-game</b> pops up on every action:</p>
+          <p style="margin-top:6px">${Icon.ico('fist', 14)} <b>Attacking?</b> Do what it says — stop the marker in the green, hit the target, tap on the beat. Miss and your hit is <b>weaker</b>.</p>
+          <p style="margin-top:4px">${Icon.ico('shield2', 14)} <b>Being attacked?</b> A red <b>PARRY!</b> game appears — react in time to <b>reduce the damage</b>. A perfect parry blocks almost all of it and reflects some back.</p>
+          <p style="margin-top:6px;opacity:.7;font-size:12px">Tip: mouse/tap or the SPACE key. Bring plenty of memes — you can deploy as many as you like.</p>
         </div>`,
         actions: [{ label: "LET'S FIGHT", cls: 'fun', fn: res }],
       });
@@ -216,16 +267,15 @@ const Combat = {
     const st = this.state;
     while (!st.over) {
       st.round++;
-      document.getElementById('battle-round').textContent = 'ROUND ' + st.round;
-      if (st.round > 1) this.log('Round ' + st.round, true);
+      this.updateWaveLabel();
       const order = st.units.filter(u => u.hp > 0).sort((a, b) => this.spd(b) - this.spd(a));
       for (const u of order) {
-        if (st.over) return;
+        if (st.over || st.transitioning) return;
         if (u.hp <= 0) continue;
         await this.takeTurn(u);
         if (this.checkEnd()) return;
       }
-      if (st.round > 40) { this.finish(false); return; }  // safety
+      if (st.round > 80) { this.finish(false); return; }  // safety
     }
   },
 
@@ -297,16 +347,16 @@ const Combat = {
     if (abId !== 'bonk') await this.animeCutIn(u, ab);
     else { this.focusUnit(u, 1.5); await U.wait(280); }
 
-    // QTE — skill layer: each ability maps to one of 20 mini-games
+    // QTE — skill layer: the mini-game only *reduces* your damage (perfect = full)
     let mult = 1, hits = 3, perfect = false;
     const mini = abId === 'bonk' ? 'timing' : QTE.forAbility(ab, abId);
     const tut = u.isMeme && this._tutStrike;
     if (tut) this._tutStrike = false;
-    const g = await QTE.play(mini, { label: ab.name + '!', tutorial: tut, hint: tut ? 'Do what it says — nail it for BONUS DAMAGE!' : '', time: tut ? 3800 : undefined });
+    const g = await QTE.play(mini, { label: ab.name + '!', tutorial: tut, hint: tut ? 'Nail it or your hit is WEAKER!' : '', time: tut ? 3800 : undefined });
     mult = this.GRADE_MULT[g];
     perfect = g === 'perfect';
-    hits = { miss: 2, ok: 3, good: 4, perfect: 5 }[g] || 3;
-    const crit = perfect || U.chance((u.stats.crit || 4) / 100);
+    hits = { miss: 2, ok: 3, good: 3, perfect: 3 }[g] || 3;   // fixed hit count — timing only scales damage down
+    const crit = U.chance((u.stats.crit || 4) / 100);          // crit is luck-based only, never gifted by the mini-game
 
     const foes = this.livingFoes();
     let targets;
@@ -802,8 +852,12 @@ const Combat = {
   checkEnd() {
     const st = this.state;
     if (st.over) return true;
-    if (!this.livingFoes().length) { this.finish(true); return true; }
+    if (st.transitioning) return true;      // mid wave-swap; pause the loop
     if (!this.livingMemes().length) { this.finish(false); return true; }
+    if (!this.livingFoes().length) {
+      if (!st.stage.endless && st.waveIdx < st.waves.length - 1) { this.nextWave(); return true; }
+      this.finish(true); return true;
+    }
     return false;
   },
 
@@ -957,6 +1011,7 @@ const Combat = {
           document.getElementById('team-track').innerHTML = '';
           this.camWide();
           Game.postBattle();
+          if (result === true) Game.hatchEggs();   // winning hatches your incubating eggs
           if (typeof Desktop.drainPacks === 'function') Desktop.drainPacks();
         },
       }],

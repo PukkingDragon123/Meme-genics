@@ -8,8 +8,8 @@
 const Game = {
   SAVE_KEY: 'memegenics_save_v5',
   CAPACITY: 12,
-  HATCH_MS: 18000,      // egg incubation time (seconds)
-  BREED_CD_MS: 24000,   // per-parent breeding cooldown (seconds)
+  HATCH_MS: 18000,      // (legacy) — eggs now hatch by WINNING a battle
+  BREED_CD_MS: 60000,   // per-parent breeding cooldown — breeding takes a while now
   MAX_STAGES: 5,        // energy: a meme retires after this many fights
 
   state: null,
@@ -302,37 +302,29 @@ const Game = {
 
   secsLeft(untilMs) { return Math.max(0, Math.ceil((untilMs - Date.now()) / 1000)); },
 
-  // click an egg to hurry it along
-  speedEgg(egg, secs = 4) {
-    if (!egg) return;
-    egg.hatchAt = Math.max(Date.now(), (egg.hatchAt || 0) - secs * 1000);
-    this.tickEggs();
+  // eggs no longer hatch on a timer — this just keeps the desktop egg visuals live
+  tickEggs() {
+    if (typeof Desktop !== 'undefined' && Desktop.refreshEggs) Desktop.refreshEggs();
   },
 
-  tickEggs() {
-    if (!this.state.eggs || !this.state.eggs.length) return;
-    const now = Date.now();
-    let hatched = false;
+  // WIN a battle to hatch all incubating eggs
+  hatchEggs() {
+    if (!this.state.eggs || !this.state.eggs.length) return 0;
+    let n = 0;
     for (const egg of this.state.eggs.slice()) {
-      if (now >= egg.hatchAt) {
-        this.state.eggs.splice(this.state.eggs.indexOf(egg), 1);
-        if (egg.id) Desktop.removeEgg(egg.id);
-        if (this.state.memes.length < this.CAPACITY) {
-          this.state.memes.push(egg.baby);
-          Desktop.spawnWalker(egg.baby);
-          this.discover(egg.baby.pheno.face);
-          SFX.play('birth');
-          const c = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-          FX.confetti(c.x, c.y, 30); FX.ring(c.x, c.y, '#d9b45f');
-          toast(`<b>${U.esc(egg.baby.name)}</b> hatched!`, 3200, 'egg');
-        } else {
-          toast('An egg hatched but the desktop is full!', 3000, 'warning');
-        }
-        hatched = true;
-      }
+      if (this.state.memes.length >= this.CAPACITY) { toast('An egg is ready to hatch but the desktop is full!', 3200, 'warning'); break; }
+      this.state.eggs.splice(this.state.eggs.indexOf(egg), 1);
+      if (egg.id) Desktop.removeEgg(egg.id);
+      this.state.memes.push(egg.baby);
+      Desktop.spawnWalker(egg.baby);
+      this.discover(egg.baby.pheno.face);
+      const c = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      FX.confetti(c.x, c.y, 30); FX.ring(c.x, c.y, '#d9b45f');
+      toast(`<b>${U.esc(egg.baby.name)}</b> hatched from your victory!`, 3400, 'egg');
+      n++;
     }
-    if (hatched) { Desktop.updateTray(); Desktop.refreshWindow('breeder'); Desktop.refreshWindow('breeding'); Desktop.refreshWindow('squad'); this.save(); }
-    if (typeof Desktop !== 'undefined' && Desktop.refreshEggs) Desktop.refreshEggs();
+    if (n) { SFX.play('birth'); Desktop.updateTray(); Desktop.refreshWindow('breeder'); Desktop.refreshWindow('breeding'); Desktop.refreshWindow('squad'); Desktop.refreshEggs(); this.save(); }
+    return n;
   },
 
   /* ---------------- dex / discovery ---------------- */

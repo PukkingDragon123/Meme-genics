@@ -663,22 +663,21 @@ const Desktop = {
     go.onclick = () => this.doBreed(A, B);
     wrap.appendChild(go);
 
-    // incubating eggs (live countdowns; refreshed each second by the game tick)
+    // eggs waiting to hatch (on your next win)
     if (Game.state.eggs.length) {
-      wrap.appendChild(U.el('div', 'card-section-label', `${Icon.ico('egg', 14)} Incubating`));
+      wrap.appendChild(U.el('div', 'card-section-label', `${Icon.ico('egg', 14)} Eggs`));
       const list = U.el('div', 'egg-list');
       for (const egg of Game.state.eggs) {
-        const left = Game.secsLeft(egg.hatchAt);
         const row = U.el('div', 'egg-row');
-        row.innerHTML = `${Sprite.eggHTML(left <= 6 ? 1 : 0, 40)}
+        row.innerHTML = `${Sprite.eggHTML(1, 40)}
           <div class="egg-meta"><span>${U.esc(egg.parents[0])} + ${U.esc(egg.parents[1])}</span>
-          <span class="egg-timer">${Icon.ico('hourglass', 11)} hatches in ${left}s</span></div>`;
+          <span class="egg-timer">${Icon.ico('swords', 11)} hatches on your next WIN</span></div>`;
         list.appendChild(row);
       }
       wrap.appendChild(list);
     }
 
-    wrap.appendChild(U.el('p', '', `<span style="font-size:11px;opacity:.6">Fusing lays an <b>egg</b> that hatches in ${Math.round(Game.HATCH_MS / 1000)}s; parents then rest for ${Math.round(Game.BREED_CD_MS / 1000)}s. Kids inherit alleles, a parent's class, and abilities. Babies grow up after a fight.</span>`));
+    wrap.appendChild(U.el('p', '', `<span style="font-size:11px;opacity:.6">Fusing lays an <b>egg</b> that hatches when you <b>win a battle</b>. Parents then rest for ${Math.round(Game.BREED_CD_MS / 1000)}s and <b>can't fight</b> while breeding. Kids inherit alleles, class, and skills.</span>`));
     body.appendChild(wrap);
   },
 
@@ -713,7 +712,7 @@ const Desktop = {
     const now = Date.now();
     A.breedReadyAt = now + Game.BREED_CD_MS;
     B.breedReadyAt = now + Game.BREED_CD_MS;
-    const egg = { id: U.uid('egg'), baby, inbred, born: now, hatchAt: now + Game.HATCH_MS, parents: [A.name, B.name], parentIds: [A.id, B.id] };
+    const egg = { id: U.uid('egg'), baby, inbred, born: now, parents: [A.name, B.name], parentIds: [A.id, B.id] };
     Game.state.eggs.push(egg);
     Game.state.stats.memesBred++;
     this.breedSel = [null, null];
@@ -721,7 +720,7 @@ const Desktop = {
     SFX.play('egg');
     const c = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     FX.hearts(c.x, c.y, 10);
-    toast(`<b>${U.esc(A.name)}</b> + <b>${U.esc(B.name)}</b> are breeding! An egg is incubating on your desktop — tap it to speed it up.`, 3600, 'egg');
+    toast(`<b>${U.esc(A.name)}</b> + <b>${U.esc(B.name)}</b> are breeding! Their egg hatches when you <b>WIN a battle</b>.`, 4000, 'egg');
     Game.save();
     this.refreshWindow('breeder');
     this.refreshWindow('breeding');
@@ -741,17 +740,16 @@ const Desktop = {
 
   spawnEgg(egg) {
     if (!egg || this.eggEls[egg.id]) return;
-    const el = U.el('div', 'desk-egg');
-    el.innerHTML = `<div class="de-sprite"></div><div class="de-timer"></div><div class="de-tip">tap to speed</div>`;
+    const el = U.el('div', 'desk-egg ready');
+    el.innerHTML = `<div class="de-sprite"></div><div class="de-timer">${Icon.ico('swords', 10)} WIN</div><div class="de-tip">win a fight!</div>`;
     el.onclick = () => {
-      Game.speedEgg(egg, 4);
       SFX.play('pet');
       const r = el.getBoundingClientRect();
       FX.hearts(r.left + r.width / 2, r.top + 6, 4);
       el.classList.remove('wobble'); void el.offsetWidth; el.classList.add('wobble');
-      this.refreshEggs();
+      toast(`This egg hatches when you <b>win a battle</b>! Send a squad into a stage.`, 3200, 'egg');
     };
-    Tooltip.bind(el, () => `<h4>${Icon.ico('egg', 14)} Incubating egg</h4><div>${U.esc(egg.parents[0])} + ${U.esc(egg.parents[1])} are breeding.<br>Tap to hurry the hatch.</div>`);
+    Tooltip.bind(el, () => `<h4>${Icon.ico('egg', 14)} Egg — ready to hatch</h4><div>${U.esc(egg.parents[0])} + ${U.esc(egg.parents[1])}'s baby.<br><b>Win a battle</b> to hatch it.</div>`);
     document.getElementById('meme-layer').appendChild(el);
     this.eggEls[egg.id] = el;
     this.refreshEggs();
@@ -764,21 +762,14 @@ const Desktop = {
 
   refreshEggs() {
     const eggs = (Game.state && Game.state.eggs) || [];
-    // spawn any missing
     for (const egg of eggs) if (egg.id && !this.eggEls[egg.id]) this.spawnEgg(egg);
-    // remove stale
     for (const id of Object.keys(this.eggEls)) if (!eggs.some(e => e.id === id)) this.removeEgg(id);
-    // position + timers
     eggs.forEach((egg, i) => {
       const el = this.eggEls[egg.id]; if (!el) return;
       const p = this.eggPos(i);
       el.style.left = p.left + 'px'; el.style.top = p.top + 'px';
-      const left = Game.secsLeft(egg.hatchAt);
-      const total = Math.max(1, Math.round((egg.hatchAt - (egg.born || (egg.hatchAt - Game.HATCH_MS))) / 1000));
       const spr = el.querySelector('.de-sprite');
-      if (spr) spr.innerHTML = Sprite.eggHTML(left <= 6 ? 1 : 0, 46);
-      const t = el.querySelector('.de-timer'); if (t) t.textContent = left + 's';
-      el.classList.toggle('ready', left <= 6);
+      if (spr && !spr.firstChild) spr.innerHTML = Sprite.eggHTML(1, 46);
     });
   },
 
@@ -795,24 +786,18 @@ const Desktop = {
   renderBreeding(body) {
     const eggs = Game.state.eggs || [];
     const busy = Game.state.memes.filter(m => Game.isBreeding(m));
-    body.innerHTML = `<p style="font-size:12px;opacity:.78;margin-bottom:8px">Eggs incubate here in real time. Parents are <b>busy breeding</b> and can't be sent to fight until they're rested. Tap an egg (here or on the desktop) to speed it up.</p>`;
+    body.innerHTML = `<p style="font-size:12px;opacity:.78;margin-bottom:8px">Your eggs hatch when you <b>WIN a battle</b>. Parents are <b>busy breeding</b> and can't be sent to fight until they've rested.</p>`;
     if (!eggs.length) {
-      body.appendChild(U.el('p', '', `<span style="font-size:12px;opacity:.6">No eggs incubating. Fuse two memes in <b>Breeder2000</b> to make one.</span>`));
+      body.appendChild(U.el('p', '', `<span style="font-size:12px;opacity:.6">No eggs waiting. Fuse two memes in <b>Breeder2000</b> to make one.</span>`));
     }
     const list = U.el('div', 'egg-list');
     for (const egg of eggs) {
-      const left = Game.secsLeft(egg.hatchAt);
-      const total = Math.max(1, Math.round(((egg.hatchAt - (egg.born || (egg.hatchAt - Game.HATCH_MS)))) / 1000));
-      const pct = U.clamp((1 - left / total) * 100, 2, 100);
       const row = U.el('div', 'egg-row');
-      row.innerHTML = `${Sprite.eggHTML(left <= 6 ? 1 : 0, 44)}
+      row.innerHTML = `${Sprite.eggHTML(1, 44)}
         <div class="egg-meta">
           <span>${U.esc(egg.parents[0])} + ${U.esc(egg.parents[1])}</span>
-          <div class="egg-bar"><div style="width:${pct}%"></div></div>
-          <span class="egg-timer">${Icon.ico('hourglass', 11)} hatches in ${left}s</span>
-        </div>
-        <button class="chunky-btn small fun egg-speed">${Icon.ico('bolt', 13)} Speed</button>`;
-      row.querySelector('.egg-speed').onclick = () => { Game.speedEgg(egg, 4); SFX.play('pet'); this.refreshWindow('breeding'); this.refreshEggs(); };
+          <span class="egg-timer">${Icon.ico('swords', 11)} hatches on your next WIN</span>
+        </div>`;
       list.appendChild(row);
     }
     body.appendChild(list);
@@ -1123,8 +1108,8 @@ const Desktop = {
     const sel = new Set();
     const ep = this.enemyPower(stage);
     const node = U.el('div');
-    node.innerHTML = `<p class="squad-pick-note">Pick up to <b>4</b> memes for <b>${stage.name}</b>.<br>
-      <span style="font-size:11px;opacity:.7">Enemy power <b>${ep}</b> · survivors retire afterward.</span></p>
+    node.innerHTML = `<p class="squad-pick-note">Send <b>as many memes as you want</b> into <b>${stage.name}</b>.<br>
+      <span style="font-size:11px;opacity:.7">Multiple <b>waves</b> + a boss await. Enemy power <b>${ep}</b> · survivors burn energy.</span></p>
       <div class="pick-power">Team power: <b class="pp-num">0</b></div>`;
     const ppNum = () => node.querySelector('.pp-num');
     const grid = U.el('div', 'breed-pick-grid');
@@ -1142,7 +1127,7 @@ const Desktop = {
         <span class="mm-sub">${Icon.ico('bolt', 11)} ${Genetics.power(m)}</span>`;
       cell.onclick = () => {
         if (sel.has(m.id)) { sel.delete(m.id); cell.classList.remove('selected'); }
-        else if (sel.size < 4) { sel.add(m.id); cell.classList.add('selected'); SFX.play('select'); }
+        else { sel.add(m.id); cell.classList.add('selected'); SFX.play('select'); }
         recalc();
       };
       grid.appendChild(cell);
