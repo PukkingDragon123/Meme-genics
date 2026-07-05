@@ -523,6 +523,33 @@ html, body { height: 100%; font-family: var(--font); color: var(--text); overflo
 .arena-unit.ready-hop .au-body { animation: hopReady .4s ease; }
 @keyframes hopReady { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-16px); } }
 
+/* ---- anime combat: spin leaps, run-ups, mid-air clash, hit-stop ---- */
+.arena-unit.jumping.spin .au-body { animation: spinArc .44s ease; }
+@keyframes spinArc {
+  0% { transform: translateY(0) rotate(0); }
+  45% { transform: translateY(-56px) rotate(215deg) scale(1.08); }
+  80% { transform: translateY(0) rotate(345deg); }
+  100% { transform: translateY(0) rotate(360deg); }
+}
+.arena-unit.running .au-body { animation: runLean .1s ease forwards; }
+@keyframes runLean { to { transform: skewX(-12deg) translateY(2px); } }
+.arena-unit.bracing .au-body { animation: brace .32s ease; }
+@keyframes brace { 0% { transform: translateY(0); } 45% { transform: translateY(-9px) scaleX(.9) scaleY(1.06); } 100% { transform: translateY(0); } }
+.arena-unit.knockback .au-body { animation: knockBack .42s cubic-bezier(.2,.8,.3,1); }
+@keyframes knockBack { 0% { transform: translateX(0) rotate(0); } 35% { transform: translateX(20px) rotate(24deg); } 100% { transform: translateX(0) rotate(0); } }
+#battle.hitstop .au-body { animation-play-state: paused; }
+#battle.hitstop { filter: saturate(1.18) brightness(1.1) contrast(1.04); }
+.clash-pop { position: fixed; transform: translate(-50%,-50%); width: 96px; height: 96px; pointer-events: none; z-index: 906;
+  background: radial-gradient(circle, rgba(255,255,255,.95), rgba(255,224,122,.55) 38%, transparent 70%); animation: clashPop .38s ease-out forwards; }
+.clash-pop::after { content: ''; position: absolute; inset: 0;
+  background: repeating-conic-gradient(from 0deg, rgba(255,255,255,.7) 0 6deg, transparent 6deg 30deg); border-radius: 50%; opacity: .55; }
+@keyframes clashPop { 0% { transform: translate(-50%,-50%) scale(.2) rotate(0); opacity: 1; } 60% { opacity: 1; } 100% { transform: translate(-50%,-50%) scale(1.7) rotate(40deg); opacity: 0; } }
+
+/* ---- tutorial mini-game emphasis ---- */
+.qm.qm-tut { border-color: var(--gold); box-shadow: var(--shadow), 0 0 22px rgba(240,181,65,.5); }
+.qm-hint { font-size: 12px; font-weight: 900; color: var(--gold); margin-bottom: 6px; animation: hintPulse 1s ease-in-out infinite; }
+@keyframes hintPulse { 50% { opacity: .55; } }
+
 .meme-walker.jumping .sprite-box { animation: walkjump .5s ease; }
 @keyframes walkjump {
   0%,100% { transform: translateY(0); }
@@ -672,7 +699,29 @@ html, body { height: 100%; font-family: var(--font); color: var(--text); overflo
 .sc-desc { font-size: 11px; opacity: .82; min-height: 30px; line-height: 1.3; }
 .sc-assign { margin-top: 6px; }
 .sc-assigned { margin-top: 6px; font-size: 12px; color: var(--gold); font-weight: 900; display: flex; align-items: center; justify-content: center; gap: 4px; }
+.sc-grab { font-size: 10px; color: var(--text-dim); margin-top: 4px; opacity: .8; }
 .pack-foot { text-align: center; margin-top: 12px; }
+.pack-hint { font-size: 12px; opacity: .85; text-align: center; margin-bottom: 10px; line-height: 1.4; }
+.pack-divider { text-align: center; font-size: 11px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); margin: 12px 0 8px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.pack-divider::before, .pack-divider::after { content: ''; height: 2px; flex: 1; background: rgba(255,255,255,.08); border-radius: 2px; }
+.skill-card.draggable { cursor: grab; touch-action: none; transition: transform .1s, box-shadow .1s; }
+.skill-card.draggable:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.skill-card.draggable:active { cursor: grabbing; }
+.skill-card.dragging-src { opacity: .35; }
+.card-ghost { position: fixed; left: 0; top: 0; transform: translate(-50%, -50%) rotate(-4deg) scale(1.05); pointer-events: none; z-index: 1000; opacity: .95; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
+.pack-meme { transition: transform .1s, box-shadow .1s, outline-color .1s; outline: 2px solid transparent; }
+.pack-meme.drop-hot { outline: 3px solid var(--gold); transform: scale(1.07); box-shadow: 0 0 16px rgba(240,181,65,.6); }
+.replace-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+/* compact pack layout so cards + meme drop-targets fit without scrolling */
+.w-pack .card-grid { gap: 8px; }
+.w-pack .skill-card { padding: 7px 6px; }
+.w-pack .sc-ico { margin: 2px 0; }
+.w-pack .sc-ico img { width: 34px; }
+.w-pack .sc-title { font-size: 13px; margin: 2px 0; }
+.w-pack .sc-desc { font-size: 10px; min-height: 24px; line-height: 1.25; }
+.w-pack .sc-grab { margin-top: 2px; }
+.w-pack .squad-grid { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; }
+.w-pack .pack-meme .meme-px { width: 46px !important; }
 
 /* ============================================================
    3D-ish ROOM (leave the PC)

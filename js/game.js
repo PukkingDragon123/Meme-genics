@@ -27,6 +27,8 @@ const Game = {
       cloudWave: 0,
       shopStock: [],
       seenIntro: false,
+      gotStarterPack: false,
+      tutorialDone: false,
       unlocks: {},
       eggs: [],
       dms: [],            // adoption DMs from people online (retired memes)
@@ -208,8 +210,10 @@ const Game = {
     return '';
   },
 
-  // apply a card to a meme; returns a reason-string on failure, true on success
-  applyCard(card, meme) {
+  // apply a card to a meme; returns true on success, 'FULL' if an ability
+  // needs a skill to replace (2-slot cap), or a reason-string on failure.
+  // Pass replaceId to swap that existing skill for the card's ability.
+  applyCard(card, meme, replaceId) {
     if (!card || !meme) return 'No target';
     if (card.kind === 'stat') {
       meme.base[card.stat] = (meme.base[card.stat] || 0) + card.amt;
@@ -229,7 +233,10 @@ const Game = {
     }
     if (card.kind === 'ability') {
       if (meme.learned && meme.learned.includes(card.id)) return 'Already knows it';
-      if (meme.learned && meme.learned.length >= Genetics.MAX_ABILITIES) return 'Skill slots full';
+      if (meme.learned && meme.learned.length >= Genetics.MAX_ABILITIES) {
+        if (!replaceId) return 'FULL';   // UI must ask which skill to replace
+        return Genetics.replaceSkill(meme, replaceId, card.id) ? true : 'Could not replace';
+      }
       return Genetics.teach(meme, card.id) ? true : 'Could not learn';
     }
     return 'Unknown card';

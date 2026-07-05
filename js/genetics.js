@@ -94,8 +94,17 @@ const Genetics = {
     meme.learned.push(id);
     return true;
   },
+  // swap an existing learned skill for a new one (slots are capped)
+  replaceSkill(meme, oldId, newId) {
+    if (!meme.learned) meme.learned = [];
+    if (meme.learned.includes(newId)) return false;
+    const i = meme.learned.indexOf(oldId);
+    if (i < 0) return this.teach(meme, newId);
+    meme.learned[i] = newId;
+    return true;
+  },
 
-  MAX_ABILITIES: 6,
+  MAX_ABILITIES: 2,
   learnAbility(meme) {
     const pool = DATA.LEARNABLE.filter(a => !meme.learned.includes(a));
     if (!pool.length || meme.learned.length >= this.MAX_ABILITIES) return null;

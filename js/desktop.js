@@ -1161,53 +1161,146 @@ const Desktop = {
      ============================================================ */
   packState: null,
 
-  drainPacks() {
+  drainPacks(tutorial) {
     if (!Game.state.pendingPacks || !Game.state.pendingPacks.length) return;
     const cards = Game.state.pendingPacks.shift();
     Game.save();
-    this.packState = { cards, assigned: cards.map(() => null) };
+    this.packState = { cards, assigned: cards.map(() => null), tutorial: !!tutorial };
     this.openPack();
   },
 
   openPack() {
     this.openWindow('pack', {
-      title: 'Skill Card Pack', ico: 'cards', w: 470, cls: 'w-pack',
+      title: 'Skill Card Pack', ico: 'cards', w: 480, cls: 'w-pack',
+      x: 120, y: 24,
       build: body => this.renderPack(body),
     });
+  },
+
+  cardHTML(c, i, assignedName) {
+    const rare = c.rarity === 'rare';
+    return `<div class="skill-card ${rare ? 'rare' : 'common'} ${assignedName ? 'used' : 'draggable'}" data-ci="${i}">
+      <div class="sc-kind">${c.kind === 'ability' ? 'SKILL' : c.kind === 'trait' ? 'PASSIVE' : 'STAT UP'}</div>
+      <div class="sc-ico">${Icon.ico(Game.cardIcon(c), 42)}</div>
+      <div class="sc-title">${U.esc(Game.cardTitle(c))}</div>
+      <div class="sc-desc">${U.esc(Game.cardDesc(c))}</div>
+      ${assignedName
+        ? `<div class="sc-assigned">${Icon.ico('crown', 12)} ${U.esc(assignedName)}</div>`
+        : `<button class="chunky-btn small fun sc-assign">Assign</button><div class="sc-grab">drag me ↓</div>`}</div>`;
   },
 
   renderPack(body) {
     const ps = this.packState;
     if (!ps) { this.closeWindow('pack'); return; }
-    body.innerHTML = `<p style="font-size:12px;opacity:.82;text-align:center;margin-bottom:10px">
-      A pack of <b>4 skill cards</b>! Assign each to a meme. <b>Skills</b> add combat moves; commons are <b>stat-ups</b> or <b>passives</b>.</p>`;
-    const grid = U.el('div', 'card-grid');
+    body.innerHTML = `
+      <p class="pack-hint">${ps.tutorial ? 'Welcome! Every meme starts with just a Basic Strike. Here is your first <b>Skill Card Pack</b>. ' : ''}<b>Drag</b> a card onto a meme below to teach it — or tap <b>Assign</b>. Skills add combat moves (max <b>${Genetics.MAX_ABILITIES}</b>, replaceable); commons are stat-ups or passives.</p>
+      <div class="card-grid" id="pack-cards"></div>
+      <div class="pack-divider">${Icon.ico('roster', 13)} drag a card onto a meme</div>
+      <div class="squad-grid" id="pack-memes"></div>
+      <div class="pack-foot"></div>`;
+    const grid = body.querySelector('#pack-cards');
     ps.cards.forEach((c, i) => {
-      const rare = c.rarity === 'rare';
-      const cell = U.el('div', 'skill-card ' + (rare ? 'rare' : 'common') + (ps.assigned[i] ? ' used' : ''));
-      cell.innerHTML = `
-        <div class="sc-kind">${c.kind === 'ability' ? 'SKILL' : c.kind === 'trait' ? 'PASSIVE' : 'STAT UP'}</div>
-        <div class="sc-ico">${Icon.ico(Game.cardIcon(c), 42)}</div>
-        <div class="sc-title">${U.esc(Game.cardTitle(c))}</div>
-        <div class="sc-desc">${U.esc(Game.cardDesc(c))}</div>
-        ${ps.assigned[i]
-          ? `<div class="sc-assigned">${Icon.ico('crown', 12)} ${U.esc(ps.assigned[i])}</div>`
-          : `<button class="chunky-btn small fun sc-assign">Assign</button>`}`;
-      if (!ps.assigned[i]) cell.querySelector('.sc-assign').onclick = () => this.assignCard(i);
+      const wrap = U.el('div');
+      wrap.innerHTML = this.cardHTML(c, i, ps.assigned[i]);
+      const cell = wrap.firstElementChild;
+      if (!ps.assigned[i]) {
+        cell.querySelector('.sc-assign').onclick = e => { e.stopPropagation(); this.assignCard(i); };
+        cell.addEventListener('pointerdown', e => { if (e.target.closest('.sc-assign')) return; this.startCardDrag(e, i); });
+      }
       grid.appendChild(cell);
     });
-    body.appendChild(grid);
-    const foot = U.el('div', 'pack-foot');
-    const done = U.el('button', 'chunky-btn good', ps.assigned.every(Boolean) ? 'Done' : 'Done (keep rest unused)');
+    const memes = body.querySelector('#pack-memes');
+    for (const m of Game.state.memes) {
+      const cell = U.el('div', 'mini-meme pack-meme');
+      cell.dataset.mid = m.id;
+      const n = m.learned ? m.learned.length : 0;
+      cell.innerHTML = `${Sprite.memeSVG(m, { size: 52 })}<span class="mm-name">${U.esc(m.name)}</span>
+        <span class="mm-sub">${n}/${Genetics.MAX_ABILITIES} skills</span>`;
+      memes.appendChild(cell);
+    }
+    if (!Game.state.memes.length) memes.innerHTML = '<p style="opacity:.6;font-size:12px">No memes to teach right now.</p>';
+    const done = U.el('button', 'chunky-btn good', 'Done');
     done.onclick = () => {
       this.closeWindow('pack'); this.packState = null; Game.save();
       this.refreshAllWindows(); this.refreshWalkers();
-      setTimeout(() => this.drainPacks(), 220);   // open the next pack if any
+      setTimeout(() => this.drainPacks(), 240);   // chain to the next pack if any
     };
-    foot.appendChild(done);
-    body.appendChild(foot);
+    body.querySelector('.pack-foot').appendChild(done);
   },
 
+  // pointer-based drag (works on mouse + touch)
+  startCardDrag(ev, i) {
+    const ps = this.packState;
+    if (!ps || ps.assigned[i]) return;
+    ev.preventDefault();
+    const srcEl = ev.currentTarget;
+    const ghost = srcEl.cloneNode(true);
+    ghost.classList.add('card-ghost');
+    ghost.style.width = srcEl.offsetWidth + 'px';
+    document.body.appendChild(ghost);
+    srcEl.classList.add('dragging-src');
+    SFX.play('select');
+    const place = (x, y) => { ghost.style.left = x + 'px'; ghost.style.top = y + 'px'; };
+    place(ev.clientX, ev.clientY);
+    let overId = null;
+    const cells = () => Array.from(document.querySelectorAll('.pack-meme'));
+    const onMove = e => {
+      place(e.clientX, e.clientY);
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const cell = el && el.closest('.pack-meme');
+      overId = cell ? cell.dataset.mid : null;
+      cells().forEach(c => c.classList.toggle('drop-hot', c === cell));
+    };
+    const onUp = () => {
+      document.removeEventListener('pointermove', onMove);
+      ghost.remove();
+      srcEl.classList.remove('dragging-src');
+      cells().forEach(c => c.classList.remove('drop-hot'));
+      if (overId) this.dropCard(i, overId);
+    };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp, { once: true });
+  },
+
+  dropCard(i, memeId, replaceId) {
+    const ps = this.packState;
+    if (!ps || ps.assigned[i]) return;
+    const card = ps.cards[i];
+    const meme = Game.getMeme(memeId);
+    if (!meme) return;
+    const res = Game.applyCard(card, meme, replaceId);
+    if (res === true) {
+      ps.assigned[i] = meme.name;
+      SFX.play('levelup');
+      toast(`<b>${U.esc(meme.name)}</b> got <b>${U.esc(Game.cardTitle(card))}</b>!`, 3000, Game.cardIcon(card));
+      const w = this.windows['pack'];
+      if (w) { const t = w.el.querySelector(`.pack-meme[data-mid="${memeId}"]`); if (t) { const r = t.getBoundingClientRect(); FX.stars(r.left + r.width / 2, r.top + r.height / 2); } }
+      Game.save(); this.refreshWindow('pack'); this.refreshAllWindows(); this.refreshWalkers();
+    } else if (res === 'FULL') {
+      this.chooseReplace(i, meme);
+    } else {
+      SFX.play('error'); toast(typeof res === 'string' ? res : 'Cannot apply that card here.', 2600, 'warning');
+    }
+  },
+
+  chooseReplace(i, meme) {
+    const ps = this.packState;
+    if (!ps) return;
+    const card = ps.cards[i];
+    const node = U.el('div');
+    node.innerHTML = `<p style="font-size:12px;margin-bottom:8px"><b>${U.esc(meme.name)}</b> already knows ${Genetics.MAX_ABILITIES} skills. Replace which one with <b>${U.esc(Game.cardTitle(card))}</b>?</p>`;
+    const row = U.el('div', 'replace-row');
+    for (const id of (meme.learned || [])) {
+      const a = DATA.ABILITIES[id]; if (!a) continue;
+      const btn = U.el('button', 'chunky-btn small', `${Icon.ico(a.ico, 16)} ${a.name}`);
+      btn.onclick = () => { Modal.hide(); this.dropCard(i, meme.id, id); };
+      row.appendChild(btn);
+    }
+    node.appendChild(row);
+    Modal.show({ title: `${Icon.ico('cards', 20)} Replace a skill`, bodyNode: node, actions: [{ label: 'Cancel' }] });
+  },
+
+  // click fallback for assignment (mobile-friendly)
   assignCard(i) {
     const ps = this.packState;
     if (!ps || ps.assigned[i]) return;
@@ -1222,19 +1315,9 @@ const Desktop = {
         const cell = U.el('div', 'mini-meme');
         const known = card.kind === 'ability' && m.learned && m.learned.includes(card.id);
         cell.innerHTML = `${Sprite.memeSVG(m, { size: 54 })}<span class="mm-name">${U.esc(m.name)}</span>
-          <span class="mm-sub">Lv${m.level} · ${m.learned ? m.learned.length : 0}/${Genetics.MAX_ABILITIES} skills</span>`;
+          <span class="mm-sub">${m.learned ? m.learned.length : 0}/${Genetics.MAX_ABILITIES} skills</span>`;
         if (known) cell.style.opacity = '.5';
-        cell.onclick = () => {
-          const res = Game.applyCard(card, m);
-          if (res === true) {
-            ps.assigned[i] = m.name;
-            SFX.play('levelup');
-            toast(`<b>${U.esc(m.name)}</b> got <b>${U.esc(Game.cardTitle(card))}</b>!`, 3000, Game.cardIcon(card));
-            Game.save(); Modal.hide(); this.refreshWindow('pack');
-          } else {
-            SFX.play('error'); toast(typeof res === 'string' ? res : 'Cannot apply that card here.', 2600, 'warning');
-          }
-        };
+        cell.onclick = () => { Modal.hide(); this.dropCard(i, m.id); };
         grid.appendChild(cell);
       }
       pick.appendChild(grid);
@@ -1294,7 +1377,14 @@ const Desktop = {
         Memes start with just a <b>Basic Strike</b> — clear a stage to open a <b>Skill Card Pack</b> and teach them new moves. Each meme has <b>5 stages of energy</b>, then it <b>retires</b> to breed the next generation.</p>
         <p style="font-size:12px;opacity:.6;margin-top:6px">(psst: click <b>Leave PC</b> to see your room and sleep in the bed to skip a day)</p>
       </div>`,
-      actions: [{ label: "LET'S GO", cls: 'fun', fn: () => { Game.state.seenIntro = true; Game.save(); SFX.startMusic(); } }],
+      actions: [{ label: "LET'S GO", cls: 'fun', fn: () => {
+        Game.state.seenIntro = true; Game.save(); SFX.startMusic();
+        if (!Game.state.gotStarterPack) {
+          Game.state.gotStarterPack = true;
+          Game.awardPack(0);
+          setTimeout(() => this.drainPacks(true), 400);   // guided first pack open
+        }
+      } }],
     });
   },
 };

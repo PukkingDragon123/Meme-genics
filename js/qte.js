@@ -63,9 +63,10 @@ const QTE = {
   /* ---------- shared shell ---------- */
   _begin(kind, opts, done) {
     const layer = this.layerEl();
-    const wrap = U.el('div', 'qte qm qm-' + kind + (opts.danger ? ' danger' : ''));
+    const wrap = U.el('div', 'qte qm qm-' + kind + (opts.danger ? ' danger' : '') + (opts.tutorial ? ' qm-tut' : ''));
     wrap.innerHTML = `<div class="qte-label">${opts.label || this.NICE[kind] || ''}</div>
       <div class="qte-sub">${opts.sub || this.SUBS[kind] || ''}</div>
+      ${opts.hint ? `<div class="qm-hint">${opts.hint}</div>` : ''}
       <div class="qm-stage"></div>`;
     layer.innerHTML = '';
     layer.appendChild(wrap);

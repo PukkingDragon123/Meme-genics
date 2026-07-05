@@ -22,6 +22,9 @@ const Combat = {
     // cooler level design — each stage fights in a themed "zone"
     const zi = stage.endless ? 5 : Math.min(4, Math.max(0, (stage.diff || 1) - 1));
     battle.dataset.zone = ['downloads', 'system', 'registry', 'deepweb', 'core', 'cloud'][zi];
+    // first-ever run of the first stage plays as a guided tutorial
+    this.tutorial = !stage.endless && !Game.state.tutorialDone && stage.id === DATA.STAGES[0].id;
+    this._tutStrike = this._tutParry = this.tutorial;
     document.getElementById('start-menu').classList.add('hidden');
     document.getElementById('battle-log').innerHTML = '';
     document.getElementById('qte-layer').innerHTML = '';
@@ -180,7 +183,25 @@ const Combat = {
     SFX.play('fanfare');
     await U.wait(700);
     document.getElementById('battle').classList.remove('cine');
+    if (this.tutorial) await this.tutorialIntro();
     this.loop();
+  },
+
+  // one-time pre-battle explainer for the first fight
+  tutorialIntro() {
+    return new Promise(res => {
+      Modal.show({
+        title: `${Icon.ico('swords', 22)} How to fight`,
+        bodyHTML: `<div style="text-align:center;font-size:13px;line-height:1.6">
+          <p>Your memes and the viruses <b>fight automatically</b> — they leap in and clash on their own.</p>
+          <p style="margin-top:6px">You jump in with <b>skill</b>. A little <b>mini-game</b> pops up on every action:</p>
+          <p style="margin-top:6px">${Icon.ico('fist', 14)} <b>Attacking?</b> Do what it says — stop the marker in the green, hit the target, tap on the beat. Nail it for <b>bonus damage</b>.</p>
+          <p style="margin-top:4px">${Icon.ico('shield2', 14)} <b>Being attacked?</b> A red <b>PARRY!</b> game appears — react in time to <b>block</b>. A perfect parry reflects damage.</p>
+          <p style="margin-top:6px;opacity:.7;font-size:12px">Tip: you can use your mouse/tap or the SPACE key. Do nothing and it still resolves — but skill wins fights.</p>
+        </div>`,
+        actions: [{ label: "LET'S FIGHT", cls: 'fun', fn: res }],
+      });
+    });
   },
 
   /* ============================================================
@@ -278,7 +299,9 @@ const Combat = {
     // QTE — skill layer: each ability maps to one of 20 mini-games
     let mult = 1, hits = 3, perfect = false;
     const mini = abId === 'bonk' ? 'timing' : QTE.forAbility(ab, abId);
-    const g = await QTE.play(mini, { label: ab.name + '!' });
+    const tut = u.isMeme && this._tutStrike;
+    if (tut) this._tutStrike = false;
+    const g = await QTE.play(mini, { label: ab.name + '!', tutorial: tut, hint: tut ? 'Do what it says — nail it for BONUS DAMAGE!' : '', time: tut ? 3800 : undefined });
     mult = this.GRADE_MULT[g];
     perfect = g === 'perfect';
     hits = { miss: 2, ok: 3, good: 4, perfect: 5 }[g] || 3;
@@ -291,9 +314,20 @@ const Combat = {
     else targets = [(target && target.hp > 0) ? target : foes[0]].filter(Boolean);
     if (!support && !targets.length) { await U.wait(120); return; }
 
-    // camera + approach
-    if (melee && targets[0]) { this.focusMid(u, targets[0], 1.4); await this.dash(u, targets[0]); }
-    else { this.camWide(); this.speedlines(true); await U.wait(120); }
+    // camera + approach — melee leaps in and clashes mid-air
+    const heavy = ['nuke', 'execute'].includes(ab.kind) || perfect;
+    if (melee && targets[0]) {
+      const tgt = targets[0];
+      this.focusMid(u, tgt, 1.4);
+      if (tgt.el) tgt.el.classList.add('bracing');       // defender braces to meet the strike
+      await this.dash(u, tgt, { spin: heavy });
+      if (tgt.el) {
+        const cc = centerOf(tgt.el);
+        this.clashBurst(cc.x, cc.y - 10, ab.color);      // clash at the point of contact
+        this.freeze(heavy ? 150 : 90);
+        tgt.el.classList.remove('bracing');
+      }
+    } else { this.camWide(); this.speedlines(true); await U.wait(120); }
 
     // unique VFX
     this.playVFX(ab.vfx, u, ab.kind === 'aoe' ? foes : (support ? this.livingMemes() : targets), ab.color);
@@ -404,20 +438,29 @@ const Combat = {
     this.focusUnit(u, 1.45);
     await U.wait(300);
     this.focusMid(u, target, 1.4);
-    await this.dash(u, target);
+    await this.dash(u, target, { spin: true });
+    if (target.el) target.el.classList.add('bracing');   // your meme braces to meet the attack
 
     const pk = QTE.forParry((u.def && u.def.name || 'v') + '-' + this.state.round + '-' + (target.meme ? target.meme.id.slice(-3) : ''));
-    const grade = await QTE.play(pk, { label: 'PARRY!', danger: true, time: 1500 });
+    const tut = this._tutParry; if (tut) this._tutParry = false;
+    const grade = await QTE.play(pk, { label: 'PARRY!', danger: true, time: tut ? 2800 : 1500, tutorial: tut, hint: tut ? 'REACT to block the hit!' : '' });
+    if (target.el) target.el.classList.remove('bracing');
     const block = this.PARRY_BLOCK[grade];
     let dmg = u.stats.atk * U.rand(0.9, 1.12) * this.outMult(u);
     dmg = Math.max(1, Math.round(dmg * (1 - block)));
+    const cc = target.el ? centerOf(target.el) : { x: 0, y: 0 };
     if (grade === 'perfect') {
-      floatText(centerOf(target.el).x, centerOf(target.el).y - 60, 'PARRY!', { color: '#4bc292', size: 24 });
+      this.clashBurst(cc.x, cc.y - 10, '#4bc292');
+      this.freeze(150);
+      floatText(cc.x, cc.y - 60, 'PARRY!', { color: '#4bc292', size: 24 });
       this.flash('rgba(87,177,141,.3)');
       SFX.play('zap');
-      // small reflect
+      // knock the virus back with a spin, and reflect a little
+      if (u.el) { u.el.classList.add('knockback'); setTimeout(() => u.el && u.el.classList.remove('knockback'), 420); }
       const rfl = Math.max(1, Math.round(u.stats.atk * 0.4));
       this.impact(u, rfl, { small: true });
+    } else if (grade === 'good') {
+      this.clashBurst(cc.x, cc.y - 10, '#4bc292'); this.freeze(80);
     }
     if (dmg > 0) this.impact(target, dmg, { incoming: true });
     await U.wait(240);
@@ -427,17 +470,42 @@ const Combat = {
   /* ============================================================
      MOVEMENT / IMPACT
      ============================================================ */
-  async dash(u, target) {
+  async dash(u, target, opts = {}) {
     const dir = u.side === 'L' ? -1 : 1;
     const tx = target.x + dir * 9;
     this.speedlines(true);
+    // quick run wind-up, then a leap (spinning for heavy hits)
+    u.el.classList.add('running');
+    await U.wait(95);
+    u.el.classList.remove('running');
     u.el.classList.add('dashing', 'jumping');
+    if (opts.spin) u.el.classList.add('spin');
     u.el.style.left = tx + '%';
     SFX.play('whoosh');
     await U.wait(360);
-    u.el.classList.remove('jumping');
-    const c = centerOf(u.el); FX.dust(c.x, c.y + 30); Shake.hit(3);
+    u.el.classList.remove('jumping', 'spin');
+    const c = centerOf(u.el); FX.dust(c.x, c.y + 30); Shake.hit(4);
     this.speedlines(false);
+  },
+
+  // anime clash: crossed slashes + burst + a bright pop at the point of contact
+  clashBurst(x, y, color) {
+    FX.slash(x, y, color || '#ffffff');
+    FX.slash(x, y, '#ffe07a');
+    FX.ring(x, y, '#ffffff');
+    FX.stars(x, y);
+    FX.spawn(x, y, { count: 16, colors: ['#ffffff', '#ffe07a', color || '#ffd93d'], maxSpd: 7, sizeMin: 2, sizeMax: 5, lifeMax: 22 });
+    const pop = U.el('div', 'clash-pop');
+    pop.style.left = x + 'px'; pop.style.top = y + 'px';
+    document.getElementById('float-layer').appendChild(pop);
+    setTimeout(() => pop.remove(), 380);
+  },
+
+  // brief hit-stop / freeze-frame for impact weight
+  freeze(ms = 120) {
+    const b = document.getElementById('battle');
+    b.classList.add('hitstop');
+    setTimeout(() => b.classList.remove('hitstop'), ms);
   },
   async dashBack(u) {
     u.el.classList.add('jumping');
@@ -806,6 +874,7 @@ const Combat = {
     const st = this.state;
     if (st.over) return;
     st.over = true;
+    if (this.tutorial) { Game.state.tutorialDone = true; this.tutorial = false; }
     this.camWide();
     const stage = st.stage;
     const survivors = this.livingMemes();
